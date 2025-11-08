@@ -1,5 +1,5 @@
+// frontend/src/lib/events.ts
 // LUQOシステム共通の Event 型定義（フロント側）
-// ここを「唯一の真実の寸法」として他の型を揃える。
 
 // イベント種別
 export type EventKind = "log" | "expense" | "sale" | "luqo_score";
@@ -14,23 +14,23 @@ export interface BaseEvent<K extends EventKind = EventKind, P = unknown> {
   payload: P; // 種別ごとの中身
 }
 
-// ===== 各イベントの payload 型 =====
+// ---- 各ペイロード型 ----
 
 export interface LogPayload {
-  text: string; // 自然文ログ（#LOG, #L, #Q, #O など含む）
-  tags: string[]; // ["#LOG", "#L", "#D", ...] など
+  text: string;
+  tags?: string[];
 }
 
 export interface ExpensePayload {
-  category: string; // "交通費" "道具" など
-  amount: number; // 円
-  memo?: string;
+  amount: number;
+  category: string;
+  note?: string;
 }
 
 export interface SalePayload {
-  siteId: string; // 現場ID
-  revenue: number; // 売上（粗）
-  memo?: string;
+  amount: number;
+  clientName?: string;
+  note?: string;
 }
 
 export interface LuqoScorePayload {
@@ -38,10 +38,10 @@ export interface LuqoScorePayload {
   lu: number;
   q: number;
   o: number;
-  total: number; // LUQO合成スコア（重み付き）
+  total: number;
 }
 
-// ===== 具象イベント型 =====
+// ---- 各イベント型 ----
 
 export type LogEvent = BaseEvent<"log", LogPayload>;
 export type ExpenseEvent = BaseEvent<"expense", ExpensePayload>;
@@ -50,11 +50,8 @@ export type LuqoScoreEvent = BaseEvent<"luqo_score", LuqoScorePayload>;
 
 export type AnyEvent = LogEvent | ExpenseEvent | SaleEvent | LuqoScoreEvent;
 
-// ===== ヘルパー関数 =====
+// ---- ヘルパー ----
 
-// 新規イベントをフロント側で生成するためのユーティリティ。
-// id はとりあえず crypto.randomUUID() で発行して、
-// あとでサーバー側で上書きしてもOKという運用想定。
 export const createEvent = <K extends EventKind, P>(args: {
   userId: string;
   kind: K;
@@ -71,3 +68,20 @@ export const createEvent = <K extends EventKind, P>(args: {
     payload: args.payload,
   };
 };
+
+// ログ専用ショートカット
+export const createLogEvent = (args: {
+  userId: string;
+  text: string;
+  tags?: string[];
+  occurredAt?: string;
+}): LogEvent =>
+  createEvent<"log", LogPayload>({
+    userId: args.userId,
+    kind: "log",
+    occurredAt: args.occurredAt ?? new Date().toISOString(),
+    payload: {
+      text: args.text,
+      tags: args.tags,
+    },
+  }) as LogEvent;
