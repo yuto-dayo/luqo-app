@@ -1,0 +1,8 @@
+{
+	"scripts": {
+		"system-map": "node scripts/generate-system-graph.js"
+	},
+	"devDependencies": {
+		"madge": "^8.0.0"
+	}
+}

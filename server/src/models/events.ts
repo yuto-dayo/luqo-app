@@ -43,3 +43,17 @@ export type SaleEvent = BaseEvent<"sale", SalePayload>;
 export type LuqoScoreEvent = BaseEvent<"luqo_score", LuqoScorePayload>;
 
 export type AnyEvent = LogEvent | ExpenseEvent | SaleEvent | LuqoScoreEvent;
+
+// LUQOスコア用のログ行ビュー
+export type EventRow = {
+  id?: string;
+  userId?: string;
+  month?: string;
+  createdAt?: string;
+  text?: string | null;
+  raw?: {
+    text?: string | null;
+    [key: string]: any;
+  };
+  [key: string]: any;
+};
