@@ -1,7 +1,9 @@
 // frontend/src/components/SyncButton.tsx
 import React, { useState } from "react";
-import { postLogEvent } from "../lib/api";
-import { createLogEvent } from "../lib/events";
+import {
+  createLogEventRequest,
+  postLog,
+} from "../services/logs";
 
 type SyncState = "idle" | "syncing" | "success" | "error";
 
@@ -14,13 +16,11 @@ export function SyncButton() {
       setState("syncing");
       setMessage(null);
 
-      const event = createLogEvent({
-        userId: "u-dev-001",
+      const event = createLogEventRequest({
         text: "フロントからのLUQOテスト送信",
-        tags: ["#LOG", "#TEST"],
       });
 
-      const saved = await postLogEvent(event);
+      const saved = await postLog(event);
 
       setState("success");
       setMessage(`同期完了: id=${saved.id}`);
