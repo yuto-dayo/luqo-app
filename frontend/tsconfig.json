@@ -11,8 +11,13 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["vite/client"],
+    "types": [
+      "vite/client"
+    ],
     "composite": true
   },
-  "include": ["src", "src/vite-env.d.ts"]
+  "include": [
+    "fsrc",
+    "fsrc/vite-env.d.ts"
+  ]
 }

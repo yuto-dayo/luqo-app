@@ -1,0 +1,401 @@
+/* Google Fonts: Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* --- M3 Color System (Base) --- */
+  /* Main Background: 最背面 (Neutral 98) */
+  --color-bg-body: #fdfcff;
+  
+  /* Surface Container: カードの親となる背景 (Neutral 96) */
+  --color-surface-container-low: #f8fafc;
+  --color-surface-container: #f1f5f9;
+  --color-surface-container-high: #e2e8f0;
+
+  /* Surface: カード自体の色 (Neutral 100 / White) */
+  --color-surface: #ffffff;
+  --color-surface-dim: #dedede;
+
+  /* Text Colors */
+  --color-text-main: #1e293b;  /* Slate 800 */
+  --color-text-sub: #475569;   /* Slate 600 */
+  --color-text-muted: #94a3b8; /* Slate 400 */
+
+  /* Borders */
+  --color-border: #e2e8f0;
+  --color-border-hover: #cbd5e1;
+
+  /* --- M3 Expressive KPI Tokens (LU/Q/O) --- */
+  /* LU (Learning) - Sky Blue */
+  --color-lu-base: #0284c7;
+  --color-lu-bg: #f0f9ff;
+  --color-lu-surface: #e0f2fe;
+
+  /* Q (Contribution) - Emerald Green */
+  --color-q-base: #16a34a;
+  --color-q-bg: #f0fdf4;
+  --color-q-surface: #dcfce7;
+
+  /* O (Innovation) - Amber Orange */
+  --color-o-base: #d97706;
+  --color-o-bg: #fffbeb;
+  --color-o-surface: #fef3c7;
+
+  /* Dynamic Theme Defaults (JSから上書きされる変数) */
+  --color-seed: #00639b;
+  --color-seed-bg: #f0f9ff;
+  
+  /* --- Shapes & Radius --- */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  
+  /* AIが決定する動的角丸 */
+  --radius-dynamic: 16px; 
+
+  /* --- Motion --- */
+  --motion-duration: 0.4s;
+  --motion-easing: cubic-bezier(0.2, 0, 0, 1); /* M3 Standard Easing */
+
+  /* --- Elevation & Shadows --- */
+  /* 通常の影 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  
+  /* 浮遊感のある影 (M3 Elevation Level 3相当) */
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+
+  /* Responsive Spacing (Mobile First) */
+  --spacing-container-mobile: 1rem;
+  --spacing-container-tablet: 1.5rem;
+  --spacing-container-desktop: 2rem;
+
+  /* Breakpoints (Material Design 3推奨) */
+  --breakpoint-mobile: 480px;      /* Large handsets */
+  --breakpoint-tablet: 600px;      /* Small tablets */
+  --breakpoint-tablet-large: 840px; /* Large tablets */
+  --breakpoint-desktop: 960px;     /* Desktop */
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--color-bg-body);
+  color: var(--color-text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+}
+
+/* --- Common Components (M3 Style) --- */
+
+/* App Shell Layout */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: rgba(255, 255, 255, 0.85); /* Glassmorphism */
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+/* モバイル対応: ヘッダーのパディングを調整 */
+@media (max-width: 600px) {
+  .app-shell__header {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .app-shell__nav {
+    order: 3;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-top: var(--spacing-xs);
+  }
+  
+  .app-shell__link {
+    font-size: 0.8125rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+}
+
+.app-shell__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.app-shell__title {
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.025em;
+  /* Brand Gradient */
+  background: linear-gradient(135deg, var(--color-seed), #4f46e5);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.app-shell__nav {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.app-shell__link {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-sub);
+  transition: all 0.2s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.app-shell__link:hover {
+  color: var(--color-text-main);
+  background: var(--color-surface-container-high);
+}
+
+.app-shell__link.active {
+  color: var(--color-seed);
+  background: var(--color-seed-bg);
+}
+
+.app-shell__main {
+  flex: 1;
+  width: 100%;
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: var(--spacing-xl) var(--spacing-md);
+}
+
+/* レスポンシブ: メインコンテンツのパディング調整 */
+@media (max-width: 600px) {
+  .app-shell__main {
+    padding: var(--spacing-md) var(--spacing-sm);
+  }
+}
+
+@media (min-width: 600px) and (max-width: 840px) {
+  .app-shell__main {
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
+}
+
+/* Page Layouts */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* モバイル対応: ページのギャップを調整 */
+@media (max-width: 600px) {
+  .page {
+    gap: var(--spacing-lg);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Card Styles (Base) --- */
+.card {
+  background: var(--color-surface);
+  /* M3ではボーダーではなくトーン差で境界を作るが、薄いボーダーを入れると締まる */
+  border: 1px solid var(--color-border); 
+  border-radius: var(--radius-dynamic);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--motion-duration) var(--motion-easing);
+  overflow: hidden; /* コンテンツのはみ出し防止 */
+}
+
+/* モバイル対応: カードのパディングを調整 */
+@media (max-width: 600px) {
+  .card {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+  }
+}
+
+/* --- Utilities --- */
+.text-muted { color: var(--color-text-muted); }
+.text-sm { font-size: 0.875rem; }
+.font-bold { font-weight: 700; }
+
+/* レスポンシブタイポグラフィ */
+@media (max-width: 600px) {
+  .app-shell__title {
+    font-size: 1.125rem;
+  }
+  
+  h1, h2, h3 {
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+  }
+  
+  .text-sm {
+    font-size: 0.8125rem;
+  }
+}
+
+/* --- KPI Header Styles (Responsive) --- */
+.kpi-header {
+  padding: var(--spacing-lg);
+  background: var(--color-surface);
+  border-radius: var(--radius-dynamic);
+  margin-bottom: var(--spacing-lg);
+}
+
+.kpi-header__title {
+  margin-bottom: var(--spacing-lg);
+}
+
+.kpi-header__badge {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-seed-bg);
+  color: var(--color-seed);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.kpi-header__headline {
+  font-size: clamp(1.25rem, 5vw, 1.75rem);
+  font-weight: 800;
+  color: var(--color-text-main);
+  margin: 0 0 var(--spacing-sm) 0;
+  line-height: 1.3;
+}
+
+.kpi-header__sub {
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  color: var(--color-text-sub);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.kpi-header__nav {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-lg);
+}
+
+.kpi-header__pill {
+  flex: 1;
+  min-width: 120px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-surface-container-low);
+  border: 2px solid transparent;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--motion-duration) var(--motion-easing);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  text-align: left;
+}
+
+.kpi-header__pill:hover {
+  background: var(--color-surface-container);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.kpi-header__pill--active {
+  background: var(--color-seed-bg);
+  border-color: var(--color-seed);
+  box-shadow: var(--shadow-md);
+}
+
+.kpi-header__pill-label-ja {
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.kpi-header__pill-label-en {
+  font-size: clamp(0.75rem, 1.5vw, 0.875rem);
+  color: var(--color-text-sub);
+}
+
+.kpi-header__active-description {
+  padding: var(--spacing-md);
+  background: var(--color-surface-container-low);
+  border-radius: var(--radius-md);
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  color: var(--color-text-main);
+  line-height: 1.6;
+  border-left: 4px solid var(--color-seed);
+}
+
+/* モバイル対応: KPI Header */
+@media (max-width: 600px) {
+  .kpi-header {
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .kpi-header__nav {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+  
+  .kpi-header__pill {
+    min-width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .kpi-header__active-description {
+    padding: var(--spacing-sm);
+    font-size: 0.875rem;
+  }
+}

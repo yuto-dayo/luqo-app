@@ -1,0 +1,142 @@
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--spacing-md);
+    font-family: "Google Sans", Roboto, Arial, sans-serif;
+    background-color: var(--color-surface-container-low, #f8fafc);
+    min-height: 100vh;
+}
+
+/* モバイル対応: コンテナのパディングを調整 */
+@media (max-width: 600px) {
+    .container {
+        padding: var(--spacing-sm);
+    }
+}
+
+.compactHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-sm);
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+/* モバイル対応: ヘッダーを縦並びに */
+@media (max-width: 600px) {
+    .compactHeader {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
+    }
+    
+    .monthSelectorWrapper {
+        align-self: flex-end;
+        transform: scale(0.95);
+    }
+}
+
+.greetingBox {
+    flex: 1;
+    min-width: 0;
+}
+
+.greetingText {
+    font-size: clamp(1.125rem, 4vw, 1.375rem); /* 22px → レスポンシブ */
+    font-weight: 500;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    /* color is set dynamically via inline style */
+}
+
+/* モバイル対応: 長いテキストの折り返しを許可 */
+@media (max-width: 600px) {
+    .greetingText {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+}
+
+.sectionTitle {
+    font-size: clamp(0.8125rem, 2vw, 0.875rem); /* 14px → レスポンシブ */
+    font-weight: 500;
+    color: #444746;
+    margin: clamp(1rem, 3vw, 1.5rem) 0 var(--spacing-sm);
+    letter-spacing: 0.5px;
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+}
+
+/* モバイル対応: グリッドを1列に */
+@media (max-width: 600px) {
+    .statsGrid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+    }
+}
+
+/* タブレット対応: 2列レイアウト */
+@media (min-width: 600px) and (max-width: 840px) {
+    .statsGrid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+}
+
+.cardWrapper {
+    height: 100%;
+}
+
+.toolToggle {
+    background: transparent;
+    border: none;
+    color: #00639b;
+    /* Primary */
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toolsContainer {
+    margin-top: 32px;
+    border-top: 1px solid #eff1f4;
+}
+
+.fadeIn {
+    animation: fadeIn 0.3s ease;
+}
+
+.monthSelectorWrapper {
+    transform: scale(0.9);
+    transform-origin: right center;
+}
+
+.heroSection {
+    margin-bottom: 24px;
+}
+
+.guardianBadgeWrapper {
+    margin-top: 12px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}

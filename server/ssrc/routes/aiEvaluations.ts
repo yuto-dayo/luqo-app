@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { loadPromptById, type PromptId } from "../lib/promptIds";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { openai } from "../lib/openaiClient";
 import { dbClient } from "../lib/dbClient";
 import type { AuthedRequest } from "../types/authed-request";
 
@@ -42,28 +42,24 @@ type BaseEvaluationRequest = {
 
 type AnyEvaluationRequest = BaseEvaluationRequest & Record<string, unknown>;
 
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
-if (!GOOGLE_API_KEY) {
-  throw new Error("GOOGLE_API_KEY environment variable is not set");
-}
-const genAI = new GoogleGenerativeAI(GOOGLE_API_KEY);
-const MODEL_NAME = "gemini-3-pro-preview";
-
 async function callPrompt(promptId: PromptId, userContent: string) {
   const systemMessage = await loadPromptById(promptId);
 
-  // Gemini呼び出し (JSONモード)
-  const model = genAI.getGenerativeModel({
-    model: MODEL_NAME,
-    systemInstruction: systemMessage,
-    generationConfig: { responseMimeType: "application/json" }
+  // OpenAI呼び出し (JSONモード)
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.1",
+    messages: [
+      { role: "system", content: systemMessage },
+      { role: "user", content: userContent }
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0.7,
   });
 
-  const result = await model.generateContent(userContent);
-  const text = result.response.text();
+  const text = completion.choices[0]?.message?.content;
 
   if (!text) {
-    throw new Error(`[${promptId}] Empty response from Gemini`);
+    throw new Error(`[${promptId}] Empty response from OpenAI`);
   }
 
   try {
@@ -186,7 +182,7 @@ incidentEvaluationRouter.post("/evaluate", async (req: Request, res: Response) =
       return res.status(400).json({ ok: false, error: "No logs to audit" });
     }
 
-    // 1. Geminiで監査実行
+    // 1. OpenAIで監査実行
     const { prompt } = buildUserMessage(kind, { ...body, normalizedLogs });
     const rawResult = await callPrompt("incident.prompt", prompt);
     const auditData = rawResult as AuditResult;
