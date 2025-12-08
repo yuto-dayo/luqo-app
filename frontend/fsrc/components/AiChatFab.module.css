@@ -1,0 +1,130 @@
+/* FAB基本スタイル */
+.fab {
+  position: fixed;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg, 16px);
+  background: var(--color-seed, #00639b);
+  color: var(--color-on-seed, #ffffff);
+  border: none;
+  box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05));
+  cursor: pointer;
+  z-index: 9990;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+  transition: transform 0.2s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1)),
+              box-shadow 0.2s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1));
+}
+
+.fab:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04));
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+/* モバイル用：右下固定 */
+.fabMobile {
+  right: 24px;
+  bottom: 24px;
+  left: auto;
+  top: auto;
+}
+
+/* PC用：ドラッグ可能（位置はインラインスタイルで制御） */
+.fabDesktop {
+  /* 位置はインラインスタイルで制御 */
+}
+
+/* オーバーレイ（モバイルのみ） */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.32);
+  z-index: 9998;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Retro Game Mode対応 - 8bit Game Style */
+body.retro-game .fab {
+  background: #1a1a2e !important;
+  color: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  border-radius: 0 !important;
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.5),
+    4px 4px 0px #000000 !important;
+  transition: transform 0.1s steps(1, end) !important;
+}
+
+body.retro-game .fab:hover {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  transform: scale(1.1) translate(2px, 2px) !important;
+  box-shadow: 
+    0 0 25px rgba(0, 255, 255, 1),
+    2px 2px 0px #000000 !important;
+}
+
+body.retro-game .fab:active {
+  transform: scale(0.95) translate(4px, 4px) !important;
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.6),
+    0px 0px 0px #000000 !important;
+}
+
+/* FAB内のアイコン - ホバーしていない時はシアン */
+body.retro-game .fab svg {
+  color: #00ffff !important;
+  fill: #00ffff !important;
+  stroke: #00ffff !important;
+  filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.8));
+}
+
+body.retro-game .fab svg path,
+body.retro-game .fab svg line,
+body.retro-game .fab svg circle,
+body.retro-game .fab svg rect,
+body.retro-game .fab svg polyline,
+body.retro-game .fab svg ellipse {
+  stroke: #00ffff !important;
+  fill: none !important;
+}
+
+/* ホバー時はアイコンをダークに */
+body.retro-game .fab:hover svg {
+  color: #0a0a0f !important;
+  fill: #0a0a0f !important;
+  stroke: #0a0a0f !important;
+  filter: drop-shadow(0 0 3px rgba(0, 255, 255, 0.5));
+}
+
+body.retro-game .fab:hover svg path,
+body.retro-game .fab:hover svg line,
+body.retro-game .fab:hover svg circle,
+body.retro-game .fab:hover svg rect,
+body.retro-game .fab:hover svg polyline,
+body.retro-game .fab:hover svg ellipse {
+  stroke: #0a0a0f !important;
+  fill: none !important;
+}
+
+/* オーバーレイも8bitスタイルに */
+body.retro-game .overlay {
+  background: rgba(10, 10, 15, 0.9) !important;
+}
+

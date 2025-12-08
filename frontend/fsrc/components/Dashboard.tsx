@@ -9,6 +9,7 @@ import { TScoreSummary } from "./TScoreSummary";
 import { KpiPanel } from "./KpiPanel";
 import { PaymasterCard } from "./PaymasterCard";
 import { StarApprovalModal } from "./StarApprovalModal";
+import { OkrApprovalModal } from "./OkrApprovalModal";
 import { MonthSelector } from "./MonthSelector";
 import { GuardianBadge } from "./ui/GuardianBadge";
 import styles from "./Dashboard.module.css";
@@ -18,7 +19,7 @@ export const Dashboard: React.FC = () => {
   const setMonth = useSetMonth();
 
   // ロジックはこれ一行で完結
-  const { score, fetchScore, banditData, banditLoading, rawScore, greeting, headlineColor, historyBumpId } = useDashboardData();
+  const { score, fetchScore, banditData, banditLoading, rawScore, pendingStars, greeting, headlineColor, historyBumpId, refreshBanditData } = useDashboardData();
 
   // テーマ適用などの副作用
   useDynamicTheme(score);
@@ -38,18 +39,13 @@ export const Dashboard: React.FC = () => {
     <div className={styles.container}>
       {/* 承認待ちがある場合は操作をブロックするモーダルを表示 */}
       <StarApprovalModal />
+      <OkrApprovalModal />
 
       <AiChatFab />
 
       {/* ★刷新されたコンパクトヘッダー */}
       <header className={styles.compactHeader}>
-        <div className={styles.greetingBox}>
-          <h1 className={styles.greetingText} style={{ color: headlineColor }}>
-            {greeting}
-          </h1>
-        </div>
-
-        {/* 月選択を右側に配置 */}
+        {/* 月選択を中央に配置 */}
         <div className={styles.monthSelectorWrapper}>
           <MonthSelector currentMonth={month} onChange={setMonth} />
         </div>
@@ -58,7 +54,12 @@ export const Dashboard: React.FC = () => {
       {/* 1. Hero Section: Focus (Actionable) */}
       {/* FocusCardは最も重要なので、単独で目立たせる */}
       <div className={styles.heroSection}>
-        <FocusCard scoreReady={true} banditData={banditData} loading={banditLoading} />
+        <FocusCard 
+          scoreReady={true} 
+          banditData={banditData} 
+          loading={banditLoading}
+          onMissionUpdated={refreshBanditData}
+        />
       </div>
 
       {/* 2. Stats Section: Metrics (Glanceable) */}
@@ -76,7 +77,7 @@ export const Dashboard: React.FC = () => {
           )}
         </div>
         <div className={styles.cardWrapper}>
-          <TScoreSummary currentStars={rawScore} />
+          <TScoreSummary currentStars={rawScore} pendingStars={pendingStars} />
         </div>
       </div>
 

@@ -1,51 +1,118 @@
-import React, { useEffect, useState } from "react";
-import { apiClient } from "../lib/apiClient";
+import React, { useState } from "react";
+import { useResponsive } from "../hooks/useResponsive";
+import { useNotificationContext } from "../contexts/NotificationContext";
 
-type NotificationItem = {
-  id?: string;
-  text: string;
-  createdAt?: string;
-  kind?: string;
+type NotificationListProps = {
+  /**
+   * 通知リストを常に展開状態で表示するかどうか
+   * trueの場合、ドロップダウンではなく常に表示される
+   */
+  alwaysExpanded?: boolean;
 };
 
-export const NotificationBell: React.FC = () => {
-  const [count, setCount] = useState(0);
-  const [isOpen, setIsOpen] = useState(false);
-  const [notifs, setNotifs] = useState<NotificationItem[]>([]);
-
-  // ポーリングロジック（変更なし）
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | undefined;
-    let abort: AbortController | undefined;
-
-    const fetchNotifs = async () => {
-      try {
-        abort?.abort();
-        abort = new AbortController();
-        const res = await apiClient.get<{ items: NotificationItem[] }>(
-          "/api/v1/notifications",
-          { signal: abort.signal },
-        );
-        if (res?.items) {
-          setNotifs(res.items);
-          setCount(res.items.length);
-        }
-      } catch (e) {
-        // ignore
-      }
-    };
-
-    fetchNotifs();
-    timer = setInterval(fetchNotifs, 60_000);
-
-    return () => {
-      if (timer) clearInterval(timer);
-      abort?.abort();
-    };
-  }, []);
+/**
+ * 通知リストを表示するコンポーネント（再利用可能）
+ */
+export const NotificationList: React.FC<NotificationListProps> = ({ alwaysExpanded = false }) => {
+  const { notifications, count } = useNotificationContext();
 
   return (
-    <div style={{ position: "relative" }}>
+    <>
+      <div
+        style={{
+          padding: "12px 16px",
+          borderBottom: "1px solid #e0e2e0",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <span style={{ fontSize: "14px", fontWeight: "600", color: "#1f1f1f" }}>通知</span>
+        {count > 0 && (
+          <span style={{ fontSize: "11px", background: "#e0f2fe", color: "#0284c7", padding: "2px 8px", borderRadius: "12px" }}>
+            {count} new
+          </span>
+        )}
+      </div>
+
+      {notifications.length === 0 ? (
+        <div style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+          <div style={{ fontSize: "24px", marginBottom: "8px", opacity: 0.5 }}>📭</div>
+          新しい通知はありません
+        </div>
+      ) : (
+        <div style={{ maxHeight: "360px", overflowY: "auto" }}>
+          {notifications.map((n, i) => (
+            <div
+              key={n.id ?? i}
+              style={{
+                padding: "12px 16px",
+                borderBottom: "1px solid #f1f5f9",
+                fontSize: "13px",
+                color: "#444746",
+                background: "#fff",
+                cursor: "pointer",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f9ff")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+            >
+              <div style={{ display: "flex", gap: "8px", marginBottom: "4px" }}>
+                {/* アイコン付与 (Kindに応じて変えられるとベスト) */}
+                <span style={{ fontSize: "16px" }}>
+                  {n.kind === "q_score_adjustment" ? "🛡️" : "info"}
+                </span>
+                <div style={{ lineHeight: "1.5" }}>{n.text}</div>
+              </div>
+              {n.createdAt && (
+                <div style={{ fontSize: "11px", color: "#8e918f", marginLeft: "24px" }}>
+                  {new Date(n.createdAt).toLocaleString()}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* "すべて見る" ボタン風フッター */}
+      {notifications.length > 0 && (
+        <div
+          style={{
+            padding: "8px",
+            textAlign: "center",
+            borderTop: "1px solid #e0e2e0",
+            background: "#fdfcff",
+          }}
+        >
+          <button
+            style={{
+              border: "none",
+              background: "transparent",
+              color: "var(--color-seed)",
+              fontSize: "12px",
+              fontWeight: "600",
+              cursor: "pointer",
+            }}
+          >
+            すべての通知を見る
+          </button>
+        </div>
+      )}
+    </>
+  );
+};
+
+/**
+ * 通知ベルコンポーネント（デスクトップ用）
+ * 通知リストは NotificationList コンポーネントを使用
+ */
+export const NotificationBell: React.FC = () => {
+  const { isMobile } = useResponsive();
+  const { count } = useNotificationContext();
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div style={{ position: "relative", display: isMobile ? "block" : "inline-block", width: isMobile ? "100%" : "auto" }}>
       <button
         onClick={() => setIsOpen((prev) => !prev)}
         className="icon-btn" // ★スタイルはクラス化推奨（下部に定義）
@@ -112,100 +179,34 @@ export const NotificationBell: React.FC = () => {
         <div
           style={{
             position: "absolute",
-            right: 0, // スマホだと画面端に近すぎる場合があるので注意（本来はPopover推奨）
+            // モバイル（ドロワー内）では親要素の幅に合わせて配置、デスクトップでは右端から配置
+            ...(isMobile
+              ? {
+                  left: 0,
+                  right: 0,
+                  width: "100%",
+                  maxWidth: "100%",
+                  minWidth: "100%",
+                  boxSizing: "border-box",
+                  transformOrigin: "top center",
+                }
+              : {
+                  right: 0,
+                  width: "320px",
+                  maxWidth: "min(320px, calc(100vw - 32px))",
+                  transformOrigin: "top right",
+                }),
             top: "100%",
             marginTop: "8px",
-            width: "320px", // 少し広げる
-            maxWidth: "90vw", // スマホ対応
-            background: "#fff", // Surface Container
+            background: "var(--color-surface, #fff)", // Surface Container
             borderRadius: "16px", // M3 Extra Small ~ Medium Shape
             boxShadow: "0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.3)", // M3 Elevation 2
             zIndex: 1000,
             overflow: "hidden",
-            transformOrigin: "top right",
             animation: "scaleIn 0.2s cubic-bezier(0.2, 0, 0, 1)", // M3 Standard Easing
           }}
         >
-          <div
-            style={{
-              padding: "12px 16px",
-              borderBottom: "1px solid #e0e2e0",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span style={{ fontSize: "14px", fontWeight: "600", color: "#1f1f1f" }}>通知</span>
-            {count > 0 && (
-              <span style={{ fontSize: "11px", background: "#e0f2fe", color: "#0284c7", padding: "2px 8px", borderRadius: "12px" }}>
-                {count} new
-              </span>
-            )}
-          </div>
-
-          {notifs.length === 0 ? (
-            <div style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
-              <div style={{ fontSize: "24px", marginBottom: "8px", opacity: 0.5 }}>📭</div>
-              新しい通知はありません
-            </div>
-          ) : (
-            <div style={{ maxHeight: "360px", overflowY: "auto" }}>
-              {notifs.map((n, i) => (
-                <div
-                  key={n.id ?? i}
-                  style={{
-                    padding: "12px 16px",
-                    borderBottom: "1px solid #f1f5f9",
-                    fontSize: "13px",
-                    color: "#444746",
-                    background: "#fff",
-                    cursor: "pointer",
-                    transition: "background 0.2s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f9ff")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
-                >
-                  <div style={{ display: "flex", gap: "8px", marginBottom: "4px" }}>
-                    {/* アイコン付与 (Kindに応じて変えられるとベスト) */}
-                    <span style={{ fontSize: "16px" }}>
-                      {n.kind === "q_score_adjustment" ? "🛡️" : "info"}
-                    </span>
-                    <div style={{ lineHeight: "1.5" }}>{n.text}</div>
-                  </div>
-                  {n.createdAt && (
-                    <div style={{ fontSize: "11px", color: "#8e918f", marginLeft: "24px" }}>
-                      {new Date(n.createdAt).toLocaleString()}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* "すべて見る" ボタン風フッター */}
-          {notifs.length > 0 && (
-            <div
-              style={{
-                padding: "8px",
-                textAlign: "center",
-                borderTop: "1px solid #e0e2e0",
-                background: "#fdfcff",
-              }}
-            >
-              <button
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  color: "var(--color-seed)",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                }}
-              >
-                すべての通知を見る
-              </button>
-            </div>
-          )}
+          <NotificationList />
         </div>
       )}
       <style>{`

@@ -22,6 +22,7 @@ export function useSalesForm({ isOpen, onSuccess }: UseSalesFormProps) {
     const [category, setCategory] = useState("material");
     const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
     const [siteName, setSiteName] = useState("");
+    const [items, setItems] = useState<Array<{ name: string; quantity?: number; unitPrice?: number }>>([]); // 品名リスト
 
     // UX/UIの状態
     const [loading, setLoading] = useState(false);
@@ -59,7 +60,25 @@ export function useSalesForm({ isOpen, onSuccess }: UseSalesFormProps) {
         setResult(null);
         setBurst(false);
         setSiteName("");
+        setItems([]); // 品名リストもリセット
         // 日付とカテゴリは連続入力時に便利なのでリセットしない
+    };
+    
+    // 品名を追加
+    const addItem = () => {
+        setItems([...items, { name: "" }]);
+    };
+    
+    // 品名を更新
+    const updateItem = (index: number, field: "name" | "quantity" | "unitPrice", value: string | number) => {
+        const newItems = [...items];
+        newItems[index] = { ...newItems[index], [field]: value };
+        setItems(newItems);
+    };
+    
+    // 品名を削除
+    const removeItem = (index: number) => {
+        setItems(items.filter((_, i) => i !== index));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -97,6 +116,9 @@ export function useSalesForm({ isOpen, onSuccess }: UseSalesFormProps) {
                 resMessage = res.aiMessage;
             } else {
                 try {
+                    // 品名リストをフィルタリング（空の品名を除外）
+                    const validItems = items.filter(item => item.name.trim().length > 0);
+                    
                     const res = await apiClient.post<{ earnedPoints: number; message: string }>("/api/v1/accounting/expenses", {
                         manualData: {
                             amount: numericAmount,
@@ -105,6 +127,7 @@ export function useSalesForm({ isOpen, onSuccess }: UseSalesFormProps) {
                             category,
                             description: "マニュアル入力",
                             siteName: siteName || undefined,
+                            items: validItems.length > 0 ? validItems : undefined,
                         },
                     });
                     resPoints = res.earnedPoints || 10;
@@ -149,6 +172,7 @@ export function useSalesForm({ isOpen, onSuccess }: UseSalesFormProps) {
         category, setCategory,
         date, setDate,
         siteName, setSiteName,
+        items, setItems, addItem, updateItem, removeItem,
         loading,
         result,
         burst,

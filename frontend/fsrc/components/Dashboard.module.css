@@ -27,13 +27,12 @@
 @media (max-width: 600px) {
     .compactHeader {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: center;
         gap: var(--spacing-xs);
     }
     
     .monthSelectorWrapper {
-        align-self: flex-end;
-        transform: scale(0.95);
+        width: 100%;
     }
 }
 
@@ -119,8 +118,10 @@
 }
 
 .monthSelectorWrapper {
-    transform: scale(0.9);
-    transform-origin: right center;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .heroSection {
@@ -139,4 +140,47 @@
     to {
         opacity: 1;
     }
+}
+
+/* Retro Game Mode対応 - 8bit Game Style */
+body.retro-game .container {
+    background-color: #0a0a0f !important;
+}
+
+body.retro-game .sectionTitle {
+    font-family: 'DotGothic16', 'Press Start 2P', monospace !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 2px !important;
+    color: #00ffff !important;
+    text-shadow: 0 0 8px rgba(0, 255, 255, 0.8) !important;
+    border-bottom: 2px solid #00ffff !important;
+    padding-bottom: 8px !important;
+}
+
+body.retro-game .toolToggle {
+    border: 2px solid #00ffff !important;
+    background: #1a1a2e !important;
+    color: #00ffff !important;
+    box-shadow: 
+        0 0 8px rgba(0, 255, 255, 0.5),
+        2px 2px 0px #000000 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    border-radius: 0 !important;
+}
+
+body.retro-game .toolToggle:hover {
+    background: #00ffff !important;
+    color: #0a0a0f !important;
+    box-shadow: 
+        0 0 15px rgba(0, 255, 255, 0.8),
+        2px 2px 0px #000000 !important;
+    transform: translate(2px, 2px) !important;
+}
+
+body.retro-game .toolsContainer {
+    border-top: 2px solid #00ffff !important;
+    box-shadow: 0 -2px 0 rgba(0, 255, 255, 0.3) !important;
 }

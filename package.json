@@ -1,6 +1,10 @@
 {
 	"scripts": {
-		"system-map": "node scripts/generate-system-graph.js"
+		"system-map": "node scripts/generate-system-graph.js",
+		"show-ip": "node scripts/show-local-ip.js",
+		"test-server": "node scripts/test-server-connection.js",
+		"test-vite": "node scripts/check-vite-connection.js",
+		"network-check": "node scripts/network-diagnostics.js"
 	},
 	"devDependencies": {
 		"madge": "^8.0.0"

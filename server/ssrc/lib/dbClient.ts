@@ -205,13 +205,13 @@ export async function saveStarState(userId: string, state: UserStarState, client
   if (error) console.error("Failed to save star state", error);
 }
 
-export async function getPendingStarStates(client?: SupabaseClient): Promise<Array<{ userId: string; pending: string[]; votes?: UserStarState["votes"] }>> {
+export async function getPendingStarStates(client?: SupabaseClient): Promise<Array<{ userId: string; userName?: string; pending: string[]; votes?: UserStarState["votes"] }>> {
   const supabase = getClient(client);
   // JSONの中身でフィルタリングするのはPostgresなら可能だが、
   // ここでは全件取得してアプリ側でフィルタする簡易実装（ユーザー数が増えたら要改善）
   const { data } = await supabase.from("star_states").select("*");
 
-  const results: Array<{ userId: string; pending: string[]; votes?: any }> = [];
+  const results: Array<{ userId: string; userName?: string; pending: string[]; votes?: any }> = [];
 
   (data || []).forEach((row: any) => {
     const state = row.state as UserStarState;
@@ -223,6 +223,61 @@ export async function getPendingStarStates(client?: SupabaseClient): Promise<Arr
       });
     }
   });
+
+  // ユーザーネームを取得（profilesテーブルから、なければauth.usersから）
+  // 注意: RLSをバイパスするため、常にsupabaseAdminを使用
+  if (results.length > 0) {
+    const userIds = results.map(r => r.userId);
+    const profileMap = new Map<string, string>();
+    
+    // 1. まずprofilesテーブルから取得
+    const { data: profiles, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("id, name")
+      .in("id", userIds);
+
+    if (profileError) {
+      console.error("[getPendingStarStates] Failed to fetch profiles:", profileError);
+    } else {
+      console.log(`[getPendingStarStates] Fetched ${profiles?.length || 0} profiles for ${userIds.length} user IDs`);
+    }
+
+    (profiles || []).forEach((p: any) => {
+      if (p.name && p.name.trim()) {
+        profileMap.set(p.id, p.name);
+      }
+    });
+
+    // 2. profilesにないユーザーはauth.usersから取得を試みる
+    const missingUserIds = userIds.filter(id => !profileMap.has(id));
+    if (missingUserIds.length > 0) {
+      console.log(`[getPendingStarStates] Trying to fetch ${missingUserIds.length} users from auth.users`);
+      // auth.usersは直接クエリできないため、RPC関数を使うか、emailを取得して表示名として使う
+      // ここでは、profilesテーブルにレコードを作成するか、emailを取得する方法を検討
+      // とりあえず、emailを取得してみる
+      for (const userId of missingUserIds) {
+        try {
+          const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
+          if (!authError && authUser?.user?.email) {
+            // emailの@より前の部分を表示名として使用
+            const emailName = authUser.user.email.split('@')[0];
+            profileMap.set(userId, emailName);
+            console.log(`[getPendingStarStates] Using email prefix as name for ${userId}: ${emailName}`);
+          }
+        } catch (err) {
+          console.warn(`[getPendingStarStates] Failed to get auth user for ${userId}:`, err);
+        }
+      }
+    }
+
+    // 結果にユーザーネームを追加
+    results.forEach(r => {
+      r.userName = profileMap.get(r.userId) || undefined;
+      if (!r.userName) {
+        console.warn(`[getPendingStarStates] No userName found for userId: ${r.userId}`);
+      }
+    });
+  }
 
   return results;
 }

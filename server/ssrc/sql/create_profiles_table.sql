@@ -15,6 +15,10 @@ CREATE TABLE IF NOT EXISTS profiles (
 ALTER TABLE profiles 
 ADD COLUMN IF NOT EXISTS name text;
 
+-- updated_atカラムが存在しない場合は追加
+ALTER TABLE profiles 
+ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
 -- RLS (Row Level Security) ポリシーの設定
 -- ユーザーは自分のプロフィールのみ読み取り・更新可能
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -40,10 +44,19 @@ ON profiles FOR INSERT
 WITH CHECK (auth.uid() = id);
 
 -- updated_atを自動更新するトリガー関数（オプション）
+-- カラムが存在する場合のみ更新する安全な実装
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = now();
+  -- updated_atカラムが存在する場合のみ更新
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = TG_TABLE_SCHEMA 
+    AND table_name = TG_TABLE_NAME 
+    AND column_name = 'updated_at'
+  ) THEN
+    NEW.updated_at = now();
+  END IF;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -54,3 +67,8 @@ CREATE TRIGGER update_profiles_updated_at
 BEFORE UPDATE ON profiles
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
+
+
+
+
+

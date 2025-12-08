@@ -144,7 +144,7 @@ export const StarProposalModal: React.FC<Props> = ({ isOpen, onClose, categories
               padding: "4px",
               display: "flex",
               position: "relative",
-              isolate: "isolate"
+              isolation: "isolate"
             }}
           >
             <div

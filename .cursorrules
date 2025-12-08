@@ -10,7 +10,7 @@
 - **Technical Terms:** 専門用語を使う場合は、初心者にわかるように括弧書きで補足するか、噛み砕いて説明すること。（例: 「リファクタリング（コードの整理）」）
 
 # Design System (Dual Mode Strategy)
-このアプリは **「Normal Mode (Material 3)」** と **「Cyberpunk Mode」** の2つの顔を持ちます。
+このアプリは **「Normal Mode (Material 3)」** と **「Retro Game Mode (レトロゲームUI)」** の2つの顔を持ちます。
 AIは常に**「CSS変数 (`var(--...)`)」**を使用してスタイリングし、モード切り替えに対応できるコードを書く必要があります。
 
 ## 1. Normal Mode (Default)
@@ -19,12 +19,13 @@ AIは常に**「CSS変数 (`var(--...)`)」**を使用してスタイリング�
 - **Colors:** 白ベース (`#ffffff`)、またはソフトなダークモード。
 - **Shapes:** 角丸 (`rounded-xl` 等) を多用し、親しみやすさを演出。
 
-## 2. Cyberpunk Mode (Variant)
-- **Trigger:** `body` タグに `.cyberpunk` クラスが付与された時に発動。
-- **Vibe:** レトロフューチャー、ネオン、グリッチ、ハッカー。
-- **Colors:** 漆黒の紫 (`#05010a`)、ネオンシアン、ホットピンク。
-- **Shapes:** 角ばった形状 (`sharp`)、太い枠線、発光エフェクト。
-- **Font:** Monospace (等幅フォント) を優先。
+## 2. Retro Game Mode (Variant)
+- **Trigger:** `body` タグに `.retro-game` クラスが付与された時に発動。
+- **Vibe:** レトロゲーム、ポケモン風、ピクセルアート、LCDハンドヘルド風。
+- **Colors:** LCDクリーム背景 (`#f4f4d6`)、黒いテキスト (`#2d2d2d`)、白いカード (`#ffffff`)。
+- **Shapes:** 角ばった形状（角丸なし）、太い黒い枠線 (`3px solid #2d2d2d`)、ピクセル風の影 (`4px 4px 0px #2d2d2d`)。
+- **Font:** ピクセルフォント (`DotGothic16`, `Press Start 2P`, monospace) を優先。
+- **Animation:** アニメーションを簡素化（`steps()` を使用）、トランジションを無効化。
 
 # Implementation Rules (重要)
 - **Variable First:** 色や数値をハードコードせず、必ず `global.css` で定義された変数を使用すること。（例: `background: #fff` ❌ → `background: var(--color-surface)` ⭕️）
@@ -34,13 +35,16 @@ AIは常に**「CSS変数 (`var(--...)`)」**を使用してスタイリング�
 - **NO EMOJIS:** 絵文字の使用は厳禁。
 - **Icons:** `fsrc/components/ui/Icon.tsx` を使用すること。
 - **Motion:**
-  - Normal: 滑らかな `cubic-bezier` トランジション。
-  - Cyberpunk: 機械的な `steps()` やグリッチエフェクト。
+ - Normal: 滑らかな `cubic-bezier` トランジション。
+ - Retro Game: 機械的な `steps()` アニメーション、トランジションを無効化。
+- **UI/UX Consultation:** UI/UXデザインに関する判断や提案が必要な場合は、Gemini 3 Pro に相談すること。
 
 # Coding Guidelines
 - **Directory:** Frontend=`fsrc/`, Backend=`ssrc/`
 - **Styling:** Tailwindは使用せず、**CSS Modules** で記述すること。
 - **Comments:** 複雑なロジックの上には、必ず日本語で「何をしている処理か」をコメントすること。
+- **Complex Logic & Error Handling:** 複雑なロジックやエラー処理を実装する場合は、Claudeの最新で最強のモデルを使用すること。
+- **Brainstorming & Ideation:** ブレスト（ブレインストーミング）やアイデア出しの場合は、GPTの最新モデルを使用すること。
 
 # File Naming Conventions
 - **Components:** PascalCase（例: `Dashboard.tsx`, `FocusCard.tsx`）

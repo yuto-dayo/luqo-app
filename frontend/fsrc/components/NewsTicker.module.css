@@ -1,0 +1,152 @@
+.ticker {
+  background: linear-gradient(90deg, #b3261e 0%, #d32f2f 100%);
+  color: white;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  border-bottom: 2px solid #8b1a1a;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .ticker {
+    gap: 8px;
+  }
+}
+
+.indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .indicator {
+    gap: 6px;
+  }
+}
+
+.blinkDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffeb3b;
+  animation: blink 1s infinite;
+  box-shadow: 0 0 4px rgba(255, 235, 59, 0.8);
+}
+
+@media (max-width: 640px) {
+  .blinkDot {
+    width: 5px;
+    height: 5px;
+  }
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .label {
+    font-size: 10px;
+  }
+}
+
+.content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 22px;
+}
+
+@media (max-width: 640px) {
+  .content {
+    height: 20px;
+  }
+}
+
+.loading {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.typingDot {
+  width: 4px;
+  height: 4px;
+  background: #9ca3af;
+  border-radius: 50%;
+  animation: typing 1.4s infinite ease-in-out both;
+}
+
+.tickerContainer {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.tickerContent {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: tickerScroll 60s linear infinite;
+  gap: 40px;
+}
+
+@media (max-width: 640px) {
+  .tickerContent {
+    gap: 30px;
+  }
+}
+
+.tickerItem {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding-right: 40px;
+}
+
+@media (max-width: 640px) {
+  .tickerItem {
+    font-size: 12px;
+    padding-right: 30px;
+  }
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes typing {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+@keyframes tickerScroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+

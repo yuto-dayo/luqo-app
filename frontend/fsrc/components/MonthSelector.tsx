@@ -1,4 +1,6 @@
 import React from "react";
+import { Icon } from "./ui/Icon";
+import styles from "./MonthSelector.module.css";
 
 type Props = {
   currentMonth: string;
@@ -19,38 +21,32 @@ export const MonthSelector: React.FC<Props> = ({ currentMonth, onChange }) => {
     onChange(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`);
   };
 
-  // 今月より未来には行けないようにする制御（お好みで）
+  // 今月より未来には行けないようにする制御
   const now = new Date();
   const isFuture = date.getFullYear() > now.getFullYear() ||
     (date.getFullYear() === now.getFullYear() && date.getMonth() >= now.getMonth());
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "12px", background: "#f1f5f9", padding: "4px 12px", borderRadius: "99px" }}>
+    <div className={styles.container}>
       <button
         onClick={handlePrev}
-        style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: "16px", padding: "4px 8px", transition: "opacity var(--motion-duration) var(--motion-easing)" }}
+        className={styles.button}
+        aria-label="前の月"
       >
-        ←
+        <Icon name="arrowLeft" size={20} />
       </button>
 
-      <span style={{ fontSize: "14px", fontWeight: "600", color: "#334155", minWidth: "80px", textAlign: "center" }}>
+      <span className={styles.monthText}>
         {date.getFullYear()}年{date.getMonth() + 1}月
       </span>
 
       <button
         onClick={handleNext}
         disabled={isFuture}
-        style={{
-          border: "none",
-          background: "transparent",
-          cursor: isFuture ? "default" : "pointer",
-          fontSize: "16px",
-          padding: "4px 8px",
-          opacity: isFuture ? 0.3 : 1,
-          transition: "opacity var(--motion-duration) var(--motion-easing)"
-        }}
+        className={`${styles.button} ${styles.buttonRight}`}
+        aria-label="次の月"
       >
-        →
+        <Icon name="arrowLeft" size={20} />
       </button>
     </div>
   );

@@ -3,6 +3,8 @@ import { apiClient } from "../lib/apiClient";
 import { VoteProgress } from "./VoteProgress";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { fetchUserProfiles } from "../lib/api";
+import { loadUserNamesCache, saveUserNamesCache, getUserNameFromCache } from "../lib/cacheUtils";
+import { useTScoreRealtime } from "../hooks/useTScoreRealtime";
 
 type VoteRecord = {
   approvers: string[];
@@ -12,6 +14,7 @@ type VoteRecord = {
 
 type PendingItem = {
   userId: string;
+  userName?: string; // ユーザーネームを追加
   pending: string[];
   votes?: Record<string, VoteRecord>;
 };
@@ -42,8 +45,15 @@ export const StarApprovalModal: React.FC = () => {
   const [feedback, setFeedback] = useState("");
 
   const { showSnackbar } = useSnackbar();
+  const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
+  const isFetchingRef = useRef<boolean>(false);
+  const FETCH_DEBOUNCE_MS = 1000; // 1秒以内の連続呼び出しを防ぐ
 
-  const fetchData = useCallback(async () => {
+  const fetchDataInternal = useCallback(async () => {
+    if (isFetchingRef.current) return; // 既に取得中の場合はスキップ
+    isFetchingRef.current = true;
+    
     try {
       // ローディング中も裏で再取得できるように、初回以外はsetLoadingしない制御も可
       // ここではシンプルに
@@ -54,19 +64,73 @@ export const StarApprovalModal: React.FC = () => {
 
       if (pendingRes.ok) {
         setItems(pendingRes.items);
-        // ユーザー名を取得
+        
+        // ユーザー名を取得（優先順位: APIレスポンス > キャッシュ > fetchUserProfiles）
         const userIds = pendingRes.items.map((item) => item.userId);
-        if (userIds.length > 0) {
-          const profiles = await fetchUserProfiles(userIds);
-          setUserNames(profiles);
+        const profilesMap: Record<string, string> = {};
+        
+        // 1. まずキャッシュから取得
+        const cachedNames = loadUserNamesCache();
+        Object.assign(profilesMap, cachedNames);
+        
+        // 2. APIレスポンスから取得したuserNameを優先（最新情報）
+        pendingRes.items.forEach((item) => {
+          if (item.userName) {
+            profilesMap[item.userId] = item.userName;
+          }
+        });
+        
+        // 3. まだ取得できていないユーザー名のみ追加取得
+        const missingUserIds = userIds.filter((id) => !profilesMap[id]);
+        if (missingUserIds.length > 0) {
+          const additionalProfiles = await fetchUserProfiles(missingUserIds);
+          Object.assign(profilesMap, additionalProfiles);
         }
+        
+        // 4. 取得したユーザー名をキャッシュに保存
+        saveUserNamesCache(profilesMap);
+        
+        setUserNames(profilesMap);
       }
       if (statsRes.ok) setStats(statsRes.stats);
     } catch (e) {
       console.error("Failed to fetch pending approvals", e);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
+  }, []);
+
+  // デバウンス付きのfetchData
+  const fetchData = useCallback(() => {
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchTimeRef.current;
+    
+    // 既にスケジュールされているタイマーをクリア
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+    
+    if (timeSinceLastFetch < FETCH_DEBOUNCE_MS) {
+      // デバウンス期間内なら、残り時間後に実行
+      fetchTimeoutRef.current = setTimeout(() => {
+        lastFetchTimeRef.current = Date.now();
+        void fetchDataInternal();
+      }, FETCH_DEBOUNCE_MS - timeSinceLastFetch);
+    } else {
+      // デバウンス期間を過ぎているなら即座に実行
+      lastFetchTimeRef.current = now;
+      void fetchDataInternal();
+    }
+  }, [fetchDataInternal]);
+
+  // クリーンアップ: タイマーをクリア
+  useEffect(() => {
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -78,6 +142,9 @@ export const StarApprovalModal: React.FC = () => {
       // ただしメモリリーク警告が出る可能性はあるが、関数コンポーネントのスコープ内なので許容
     };
   }, [fetchData]);
+
+  // Supabase RealtimeでDB変更を監視（変更があった場合のみ更新）
+  useTScoreRealtime(fetchData, true);
 
   /**
    * 承認/保留の共通処理 (即時実行)
@@ -143,7 +210,8 @@ export const StarApprovalModal: React.FC = () => {
     }
   };
 
-  if (!loading && items.length === 0) return null;
+  // ローディング中、または承認・否決作業がない場合は表示しない
+  if (loading || items.length === 0) return null;
 
   return (
     <div
@@ -204,7 +272,7 @@ export const StarApprovalModal: React.FC = () => {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ display: "flex", flexDirection: "column" }}>
                           <span style={{ fontSize: "12px", color: "#5e5e5e" }}>Applicant</span>
-                          <span style={{ fontWeight: "bold", color: "#1f1f1f" }}>{userNames[userItem.userId] || userItem.userId}</span>
+                          <span style={{ fontWeight: "bold", color: "#1f1f1f" }}>{userItem.userName || userNames[userItem.userId] || userItem.userId}</span>
                         </div>
                         <span style={{ fontSize: "12px", padding: "4px 8px", background: "#e0f2fe", color: "#0284c7", borderRadius: "6px", fontWeight: 600 }}>
                           審査中

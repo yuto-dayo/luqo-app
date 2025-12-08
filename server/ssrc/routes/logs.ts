@@ -8,6 +8,7 @@ import { dbClient } from "../lib/dbClient";
 import type { AuthedRequest } from "../types/authed-request";
 import { loadPromptById } from "../lib/promptIds";
 import { openai } from "../lib/openaiClient";
+import { supabaseAdmin } from "../services/supabaseClient";
 
 export const logsRouter = Router();
 
@@ -219,10 +220,11 @@ logsRouter.get(
       const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
       const endDate = now;
 
+      // 全ユーザーのログを取得するため、管理者クライアントを使用
       const allLogs = await dbClient.getAllEventsByDateRange(
         startDate.toISOString(),
         endDate.toISOString(),
-        r.supabase,
+        undefined, // 管理者クライアントを使用（RLSをバイパスして全ユーザーのログを取得）
       );
 
       // ログのみを返す（通知などは除外）
@@ -279,11 +281,11 @@ logsRouter.get(
       const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
       const endDate = now;
 
-      // ログデータを取得
+      // ログデータを取得（全ユーザーのログを取得するため、管理者クライアントを使用）
       const allLogs = await dbClient.getAllEventsByDateRange(
         startDate.toISOString(),
         endDate.toISOString(),
-        r.supabase,
+        undefined, // 管理者クライアントを使用（RLSをバイパスして全ユーザーのログを取得）
       );
 
       // ログのみを抽出
@@ -304,10 +306,34 @@ logsRouter.get(
         });
       }
 
+      // ユーザー名を取得（ユーザーIDからユーザー名へのマッピング）
+      const uniqueUserIds = Array.from(new Set(logEvents.map((log) => log.userId).filter((id): id is string => Boolean(id))));
+      const userNameMap: Record<string, string> = {};
+      
+      if (uniqueUserIds.length > 0) {
+        const { data: profiles, error: profileError } = await supabaseAdmin
+          .from("profiles")
+          .select("id, name")
+          .in("id", uniqueUserIds);
+
+        if (!profileError && profiles) {
+          profiles.forEach((profile) => {
+            userNameMap[profile.id] = profile.name || profile.id; // 名前がない場合はuserIdをそのまま使用
+          });
+        }
+      }
+
+      // ユーザー名が取得できなかったユーザーIDは、そのままuserIdを使用
+      uniqueUserIds.forEach((userId) => {
+        if (!userNameMap[userId]) {
+          userNameMap[userId] = userId;
+        }
+      });
+
       // プロンプトを読み込み
       const systemPrompt = await loadPromptById("news.prompt");
 
-      // ログデータを整形してプロンプトに含める
+      // ログデータを整形してプロンプトに含める（ユーザーIDをユーザー名に置き換え）
       const logsText = logEvents
         .map((log, index) => {
           if (!log.createdAt) return "";
@@ -321,7 +347,8 @@ logsRouter.get(
           } else {
             timeLabel = `${daysAgo}日前`;
           }
-          return `[${index + 1}] ${timeLabel} ${log.userId || "不明"}: ${log.text || ""}`;
+          const userName = log.userId ? userNameMap[log.userId] || log.userId : "不明";
+          return `[${index + 1}] ${timeLabel} ${userName}: ${log.text || ""}`;
         })
         .filter((text) => text.length > 0)
         .join("\n");
@@ -341,7 +368,10 @@ logsRouter.get(
       const topUsers = Array.from(userLogCounts.entries())
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
-        .map(([userId, count]) => `${userId}(${count}件)`)
+        .map(([userId, count]) => {
+          const userName = userNameMap[userId] || userId;
+          return `${userName}(${count}件)`;
+        })
         .join(", ");
 
       // 日別のログ数
@@ -456,11 +486,12 @@ logsRouter.get(
         });
       }
 
-      // ログデータを取得
+      // ログデータを取得（チーム要約のため、管理者クライアントを使用して全ユーザーのログを取得）
+      // undefinedを渡すことで、getClient関数が自動的にsupabaseAdminを使用する
       const allLogs = await dbClient.getAllEventsByDateRange(
         start.toISOString(),
         end.toISOString(),
-        r.supabase,
+        undefined, // 管理者クライアントを使用（RLSをバイパスして全ユーザーのログを取得）
       );
 
       // ログのみを抽出
@@ -494,6 +525,30 @@ logsRouter.get(
         });
       }
 
+      // ユーザー名を取得（ユーザーIDからユーザー名へのマッピング）
+      const uniqueUserIds = Array.from(new Set(logEvents.map((log) => log.userId).filter((id): id is string => Boolean(id))));
+      const userNameMap: Record<string, string> = {};
+      
+      if (uniqueUserIds.length > 0) {
+        const { data: profiles, error: profileError } = await supabaseAdmin
+          .from("profiles")
+          .select("id, name")
+          .in("id", uniqueUserIds);
+
+        if (!profileError && profiles) {
+          profiles.forEach((profile) => {
+            userNameMap[profile.id] = profile.name || profile.id; // 名前がない場合はuserIdをそのまま使用
+          });
+        }
+      }
+
+      // ユーザー名が取得できなかったユーザーIDは、そのままuserIdを使用
+      uniqueUserIds.forEach((userId) => {
+        if (!userNameMap[userId]) {
+          userNameMap[userId] = userId;
+        }
+      });
+
       // 統計情報を計算
       const logCount = logEvents.length;
       const uniqueUsers = new Set(logEvents.map((log) => log.userId));
@@ -526,7 +581,7 @@ logsRouter.get(
       // プロンプトを読み込み（既存のnews.promptを拡張利用）
       const systemPrompt = await loadPromptById("news.prompt");
 
-      // ログデータを整形してプロンプトに含める
+      // ログデータを整形してプロンプトに含める（ユーザーIDをユーザー名に置き換え）
       const logsText = logEvents
         .map((log, index) => {
           if (!log.createdAt) return "";
@@ -538,7 +593,8 @@ logsRouter.get(
             hour: "2-digit",
             minute: "2-digit",
           });
-          return `[${index + 1}] ${dateStr} ${log.userId || "不明"}: ${log.text || ""}`;
+          const userName = log.userId ? userNameMap[log.userId] || log.userId : "不明";
+          return `[${index + 1}] ${dateStr} ${userName}: ${log.text || ""}`;
         })
         .filter((text) => text.length > 0)
         .join("\n");
@@ -548,7 +604,10 @@ logsRouter.get(
 【統計情報】
 - 総ログ件数: ${logCount}件
 - 参加人数: ${userCount}名
-- アクティブユーザー（上位5名）: ${topUsers.map(([uid, count]) => `${uid}(${count}件)`).join(", ") || "なし"}
+- アクティブユーザー（上位5名）: ${topUsers.map(([uid, count]) => {
+          const userName = userNameMap[uid] || uid;
+          return `${userName}(${count}件)`;
+        }).join(", ") || "なし"}
 - 最もアクティブな日: ${mostActiveDay ? `${mostActiveDay[0]}（${mostActiveDay[1]}件）` : "なし"}
 
 【ログ一覧】
@@ -598,7 +657,11 @@ ${logsText}
           statistics: {
             totalLogs: logCount,
             uniqueUsers: userCount,
-            topUsers: topUsers.map(([uid, count]) => ({ userId: uid, count })),
+            topUsers: topUsers.map(([uid, count]) => ({ 
+              userId: uid, 
+              userName: userNameMap[uid] || uid,
+              count 
+            })),
             mostActiveDay: mostActiveDay ? { date: mostActiveDay[0], count: mostActiveDay[1] } : null,
             dailyCounts: Array.from(dailyCounts.entries()).map(([date, count]) => ({ date, count })),
             dateRange: {

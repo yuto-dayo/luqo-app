@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "../components/ui/Icon";
 import { StarProposalModal } from "../components/StarProposalModal";
 import { useSnackbar } from "../contexts/SnackbarContext";
+import { apiClient } from "../lib/apiClient";
+import styles from "./StarSettingsPage.module.css";
 
 // 型定義
 type StarDefinition = {
@@ -15,11 +18,16 @@ type StarDefinition = {
 type Proposal = {
   id: string;
   proposer_id: string;
-  change_type: "ADD" | "UPDATE" | "DELETE";
+  change_type: "ADD" | "UPDATE" | "DELETE" | "ADD_CATEGORY";
   new_definition: StarDefinition;
   reason: string;
   ai_review_comment: string;
-  votes_approvers?: string[]; // 簡易表示用
+  ai_approval: boolean | null;
+  status: string;
+  created_at: string;
+  votes_approvers?: string[];
+  votes_rejecters?: string[];
+  votes_total?: number;
 };
 
 export default function StarSettingsPage() {
@@ -38,21 +46,38 @@ export default function StarSettingsPage() {
 
   const loadData = async () => {
     try {
-      // 本来はAPIを分けるべきですが、実装簡略化のためmaster系APIを一括取得する想定
-      // 今回は仮の実装として、既存のmaster.tsにGETエンドポイントを追加したと仮定してfetchします
-      // ※ 後ほど backend 側に GET /stars/definitions を追加する必要があります
-      // ここではモックや直接クエリの代わりに、一旦空配列で枠を作ります
-      
-      // ★TODO: Backendに `router.get("/stars/definitions")` を実装してください
-      // const res = await apiClient.get("/api/v1/master/stars/definitions");
-      // setDefinitions(res.data);
-      
-      // 仮データ表示 (確認用)
-      const { STAR_CATALOG } = await import("../data/starCatalog");
-      setDefinitions(STAR_CATALOG); 
+      // スター定義一覧を取得
+      const definitionsRes = await apiClient.get<{ ok: boolean; definitions: StarDefinition[] }>(
+        "/api/v1/master/stars/definitions"
+      );
+      if (definitionsRes.ok && definitionsRes.definitions) {
+        setDefinitions(definitionsRes.definitions);
+      } else {
+        // フォールバック: 仮データを表示
+        const { STAR_CATALOG } = await import("../data/starCatalog");
+        setDefinitions(STAR_CATALOG);
+      }
 
+      // 提案一覧を取得
+      const proposalsRes = await apiClient.get<{ ok: boolean; proposals: Proposal[] }>(
+        "/api/v1/master/stars/proposals"
+      );
+      if (proposalsRes.ok && proposalsRes.proposals) {
+        // pending状態の提案のみ表示（または全て表示）
+        const pendingProposals = proposalsRes.proposals.filter(
+          (p) => p.status === "pending" || p.status === "approved" || p.status === "rejected"
+        );
+        setProposals(pendingProposals);
+      }
     } catch (e) {
-      console.error(e);
+      console.error("Failed to load data:", e);
+      // エラー時もフォールバックデータを表示
+      try {
+        const { STAR_CATALOG } = await import("../data/starCatalog");
+        setDefinitions(STAR_CATALOG);
+      } catch (fallbackError) {
+        console.error("Failed to load fallback data:", fallbackError);
+      }
     }
   };
 
@@ -76,24 +101,20 @@ export default function StarSettingsPage() {
   return (
     <div className="page" style={{ paddingBottom: 80 }}>
       {/* ヘッダー */}
-      <header style={{ 
-        padding: "16px", display: "flex", alignItems: "center", gap: 12, 
-        background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)",
-        position: "sticky", top: 0, zIndex: 10, borderBottom: "1px solid #e2e8f0" 
-      }}>
-        <button onClick={() => navigate(-1)} style={{ border: "none", background: "transparent", cursor: "pointer" }}>
-          <Icon name="arrowLeft" /> {/* Iconコンポーネントに arrowLeft がなければ chevronLeft で */}
+      <header className={styles.pageHeader}>
+        <button onClick={() => navigate(-1)} className={styles.backButton}>
+          <Icon name="arrowLeft" />
         </button>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>T-Score 基準管理 (DAO)</h2>
+        <h2 className={styles.pageTitle}>T-Score 基準管理 (DAO)</h2>
       </header>
 
       {/* タブ切り替え */}
-      <div style={{ display: "flex", padding: "0 16px", borderBottom: "1px solid #e2e8f0", background: "white" }}>
+      <div className={styles.tabContainer}>
         <TabButton label="カタログ一覧" isActive={activeTab === "catalog"} onClick={() => setActiveTab("catalog")} />
         <TabButton label={`提案・投票 (${proposals.length})`} isActive={activeTab === "voting"} onClick={() => setActiveTab("voting")} />
       </div>
 
-      <div style={{ padding: "16px" }}>
+      <div className={styles.content}>
         {activeTab === "catalog" ? (
           <CatalogView definitions={definitions} onDeletePropose={openDeleteModal} />
         ) : (
@@ -101,17 +122,14 @@ export default function StarSettingsPage() {
         )}
       </div>
 
-      {/* 新規提案 FAB (Floating Action Button) */}
-      <button style={{
-        position: "fixed", bottom: 24, right: 24,
-        width: 56, height: 56, borderRadius: 28,
-        background: "#0f172a", color: "white", border: "none",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        cursor: "pointer", zIndex: 20
-      }} onClick={openCreateModal}>
-        <Icon name="pen" size={24} color="white" />
-      </button>
+      {/* 新規提案 FAB - Portalでbody直下に配置 */}
+      {typeof document !== "undefined" &&
+        createPortal(
+          <button onClick={openCreateModal} className={styles.fab} aria-label="新規提案">
+            <Icon name="pen" size={24} color="var(--color-on-seed)" />
+          </button>,
+          document.body
+        )}
 
       <StarProposalModal
         isOpen={isModalOpen}
@@ -129,12 +147,10 @@ export default function StarSettingsPage() {
 // --- サブコンポーネント ---
 
 const TabButton = ({ label, isActive, onClick }: any) => (
-  <button onClick={onClick} style={{
-    padding: "12px 0", flex: 1, border: "none", background: "transparent",
-    borderBottom: isActive ? "2px solid #00639b" : "2px solid transparent",
-    color: isActive ? "#00639b" : "#64748b", fontWeight: 700, cursor: "pointer",
-    transition: "all 0.2s"
-  }}>
+  <button 
+    onClick={onClick} 
+    className={`${styles.tabButton} ${isActive ? styles.tabButtonActive : ""}`}
+  >
     {label}
   </button>
 );
@@ -147,7 +163,7 @@ const CatalogView = ({ definitions, onDeletePropose }: { definitions: StarDefini
   }, {} as Record<string, StarDefinition[]>);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className={styles.catalogContainer}>
       {Object.entries(grouped).map(([cat, items]) => (
         <CategoryAccordion 
           key={cat} 
@@ -164,67 +180,32 @@ const CategoryAccordion = ({ title, items, onDeletePropose }: { title: string; i
   const [isOpen, setIsOpen] = useState(false);
   
   return (
-    <div style={{ background: "white", borderRadius: 12, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+    <div className={styles.categoryAccordion}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          width: "100%", padding: "16px", display: "flex", justifyContent: "space-between", alignItems: "center",
-          background: "transparent", border: "none", cursor: "pointer"
-        }}
+        className={styles.categoryHeader}
       >
-        <span style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{title} ({items.length})</span>
-        <span style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "0.2s" }}>▼</span>
+        <span className={styles.categoryTitle}>{title} ({items.length})</span>
+        <span className={`${styles.categoryIcon} ${isOpen ? styles.categoryIconOpen : ""}`}>▼</span>
       </button>
       
       {isOpen && (
-        <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className={styles.categoryContent}>
           {items.map(item => (
-            <div
-              key={item.id}
-              style={{
-                padding: "12px",
-                background: "#f8fafc",
-                borderRadius: 8,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-                border: "1px solid transparent",
-                transition: "all 0.2s"
-              }}
-            >
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>{item.label}</div>
-                <div style={{ fontSize: 10, color: "#94a3b8" }}>ID: {item.id}</div>
+            <div key={item.id} className={styles.itemCard}>
+              <div className={styles.itemInfo}>
+                <div className={styles.itemLabel}>{item.label}</div>
+                <div className={styles.itemId}>ID: {item.id}</div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontWeight: 700, color: "#00639b", fontSize: 13 }}>{item.points} pt</span>
+              <div className={styles.itemActions}>
+                <span className={styles.itemPoints}>{item.points} pt</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onDeletePropose(item);
                   }}
                   title="削除を提案"
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    cursor: "pointer",
-                    color: "#cbd5e1",
-                    padding: "4px",
-                    borderRadius: "4px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "all 0.2s"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "#ef4444";
-                    e.currentTarget.style.background = "#fee2e2";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "#cbd5e1";
-                    e.currentTarget.style.background = "transparent";
-                  }}
+                  className={styles.deleteButton}
                 >
                   <Icon name="trash" size={16} />
                 </button>
@@ -238,13 +219,167 @@ const CategoryAccordion = ({ title, items, onDeletePropose }: { title: string; i
 };
 
 const VotingView = ({ proposals }: { proposals: Proposal[] }) => {
+  const { showSnackbar } = useSnackbar();
+  const [votingProposalId, setVotingProposalId] = useState<string | null>(null);
+
+  // 投票処理
+  const handleVote = async (proposalId: string, vote: "approve" | "reject") => {
+    if (votingProposalId) return; // 投票中は無視
+
+    setVotingProposalId(proposalId);
+    try {
+      const res = await apiClient.post<{ ok: boolean; autoApplied?: boolean }>(
+        "/api/v1/master/stars/vote",
+        { proposalId, vote }
+      );
+
+      if (res.ok) {
+        showSnackbar(
+          res.autoApplied
+            ? "投票が完了し、提案が自動的に承認されました！"
+            : "投票が完了しました",
+          "success"
+        );
+        // データを再取得
+        window.location.reload(); // 簡易実装: ページをリロード
+      }
+    } catch (e: any) {
+      console.error("Vote error:", e);
+      showSnackbar(e?.data?.error || "投票に失敗しました", "error");
+    } finally {
+      setVotingProposalId(null);
+    }
+  };
+
+  // ステータスに応じた色を返す
+  const getStatusColor = (status: string) => {
+    if (status === "approved") return "#10b981";
+    if (status === "rejected") return "#ef4444";
+    return "#f59e0b";
+  };
+
+  const getStatusLabel = (status: string) => {
+    if (status === "approved") return "承認済み";
+    if (status === "rejected") return "却下";
+    return "審議中";
+  };
+
   if (proposals.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>
+      <div className={styles.emptyState}>
         <Icon name="check" size={48} />
         <p>現在、審議中の提案はありません。<br/>新しいアイデアを提案してみましょう！</p>
       </div>
     );
   }
-  return <div>提案リスト実装予定...</div>;
+
+  return (
+    <div className={styles.votingContainer}>
+      {proposals.map((proposal) => {
+        const isVoting = votingProposalId === proposal.id;
+        const changeTypeLabel =
+          proposal.change_type === "ADD"
+            ? "追加"
+            : proposal.change_type === "DELETE"
+              ? "削除"
+              : proposal.change_type === "ADD_CATEGORY"
+                ? "カテゴリ追加"
+                : "更新";
+
+        return (
+          <div key={proposal.id} className={styles.proposalCard}>
+            {/* ヘッダー */}
+            <div className={styles.proposalHeader}>
+              <div className={styles.proposalHeaderLeft}>
+                <div className={styles.badgeGroup}>
+                  <span className={styles.badge}>
+                    {changeTypeLabel}
+                  </span>
+                  <span
+                    className={styles.badgeStatus}
+                    style={{
+                      color: getStatusColor(proposal.status),
+                      background: `${getStatusColor(proposal.status)}15`,
+                    }}
+                  >
+                    {getStatusLabel(proposal.status)}
+                  </span>
+                </div>
+                {proposal.change_type !== "DELETE" && proposal.new_definition && (
+                  <div style={{ marginTop: 8 }}>
+                    <div className={styles.proposalTitle}>
+                      {proposal.new_definition.label}
+                    </div>
+                    <div className={styles.proposalSubtitle}>
+                      {proposal.new_definition.category} / {proposal.new_definition.points}pt
+                    </div>
+                  </div>
+                )}
+                {proposal.change_type === "DELETE" && proposal.new_definition && (
+                  <div style={{ marginTop: 8 }}>
+                    <div className={styles.proposalTitle} style={{ color: "#ef4444" }}>
+                      削除対象: {proposal.new_definition.label}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 提案理由 */}
+            <div className={styles.proposalReasonBox}>
+              <div className={styles.proposalReasonLabel}>
+                提案理由
+              </div>
+              <div className={styles.proposalReasonText}>
+                {proposal.reason}
+              </div>
+            </div>
+
+            {/* AI審査コメント */}
+            {proposal.ai_review_comment && (
+              <div className={styles.aiCommentBox}>
+                <div className={styles.aiCommentLabel}>
+                  AI審査コメント
+                </div>
+                <div className={styles.aiCommentText}>
+                  {proposal.ai_review_comment}
+                </div>
+                <div className={styles.aiCommentStatus}>
+                  AI判定: {proposal.ai_approval === true ? "✅ 承認" : proposal.ai_approval === false ? "❌ 却下" : "⏳ 保留"}
+                </div>
+              </div>
+            )}
+
+            {/* 投票状況 */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div className={styles.voteInfo}>
+                賛成: {proposal.votes_approvers?.length || 0}票 / 反対: {proposal.votes_rejecters?.length || 0}票
+                {proposal.votes_total !== undefined && ` (合計: ${proposal.votes_total}票)`}
+              </div>
+            </div>
+
+            {/* 投票ボタン（審議中のみ表示） */}
+            {proposal.status === "pending" && (
+              <div className={styles.voteButtons}>
+                <button
+                  onClick={() => handleVote(proposal.id, "approve")}
+                  disabled={isVoting}
+                  className={`${styles.voteButton} ${styles.voteButtonApprove}`}
+                >
+                  {isVoting ? "投票中..." : "✅ 賛成"}
+                </button>
+                <button
+                  onClick={() => handleVote(proposal.id, "reject")}
+                  disabled={isVoting}
+                  className={`${styles.voteButton} ${styles.voteButtonReject}`}
+                >
+                  {isVoting ? "投票中..." : "❌ 反対"}
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 };

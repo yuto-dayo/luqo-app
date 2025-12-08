@@ -8,35 +8,47 @@ export default function LoginPage() {
   const [pw, setPw] = useState("");
   const [loading, setLoading] = useState(false);
   const setUserId = useSetUserId();
+  const navigate = useNavigate();
 
   async function handleLogin() {
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password: pw,
-    });
-    setLoading(false);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: pw,
+      });
 
-    if (error) {
-      alert(error.message);
-      return;
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      const token = data.session?.access_token;
+      if (!token) {
+        alert("セッションが取得できませんでした");
+        return;
+      }
+
+      const user = data.user;
+      if (user?.id) {
+        setUserId(user.id);
+        localStorage.setItem("luqo_user_id", user.id);
+      }
+
+      // アクセストークンを保存
+      localStorage.setItem("session_token", token);
+      
+      // 認証状態の変更を通知（useAuthフックが検知できるように）
+      window.dispatchEvent(new Event("auth-changed"));
+      
+      // React Routerでリダイレクト（ページリロードなし）
+      navigate("/", { replace: true });
+    } catch (err: any) {
+      console.error("Login error:", err);
+      alert("ログインに失敗しました: " + (err.message || "不明なエラー"));
+    } finally {
+      setLoading(false);
     }
-
-    const token = data.session?.access_token;
-    if (!token) {
-      alert("セッションが取得できませんでした");
-      return;
-    }
-
-    const user = data.user;
-    if (user?.id) {
-      setUserId(user.id);
-      localStorage.setItem("luqo_user_id", user.id);
-    }
-
-    // アクセストークンを保存（MVPはこれでOK）
-    localStorage.setItem("session_token", token);
-    window.location.href = "/";
   }
 
   return (

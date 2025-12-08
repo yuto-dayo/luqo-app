@@ -1,4 +1,5 @@
 import React from "react";
+import { useRetroGameMode } from "../hooks/useRetroGameMode";
 
 type Props = {
   startDate: string; // YYYY-MM-DD
@@ -29,6 +30,8 @@ export const DateRangePicker: React.FC<Props> = ({
   onQuickSelect,
   disabled = false,
 }) => {
+  const isRetroGameMode = useRetroGameMode();
+
   const handleQuickSelect = (days: number) => {
     if (onQuickSelect) {
       onQuickSelect(days);
@@ -80,24 +83,39 @@ export const DateRangePicker: React.FC<Props> = ({
                 padding: "6px 12px",
                 fontSize: "12px",
                 fontWeight: "600",
-                borderRadius: "8px",
-                border: "1px solid var(--color-border, #e5e7eb)",
-                background: "var(--color-surface-container-low, #f9fafb)",
-                color: "var(--color-text-main, #111827)",
+                borderRadius: isRetroGameMode ? "0" : "8px",
+                border: isRetroGameMode ? "2px solid #00ffff" : "1px solid var(--color-border, #e5e7eb)",
+                background: isRetroGameMode ? "#1a1a2e" : "var(--color-surface-container-low, #f9fafb)",
+                color: isRetroGameMode ? "#00ffff" : "var(--color-text-main, #111827)",
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled ? 0.5 : 1,
-                transition: "all var(--motion-duration, 0.2s) var(--motion-easing, ease)",
+                transition: isRetroGameMode ? "transform 0.1s steps(1, end)" : "all var(--motion-duration, 0.2s) var(--motion-easing, ease)",
+                boxShadow: isRetroGameMode ? "0 0 8px rgba(0, 255, 255, 0.5)" : "none",
               }}
               onMouseEnter={(e) => {
                 if (!disabled) {
-                  e.currentTarget.style.background = "var(--color-surface-container, #f1f5f9)";
-                  e.currentTarget.style.borderColor = "var(--color-primary, #2563eb)";
+                  if (isRetroGameMode) {
+                    e.currentTarget.style.background = "#00ffff";
+                    e.currentTarget.style.color = "#0a0a0f";
+                    e.currentTarget.style.boxShadow = "0 0 15px rgba(0, 255, 255, 0.8)";
+                    e.currentTarget.style.transform = "translate(2px, 2px)";
+                  } else {
+                    e.currentTarget.style.background = "var(--color-surface-container, #f1f5f9)";
+                    e.currentTarget.style.borderColor = "var(--color-primary, #2563eb)";
+                  }
                 }
               }}
               onMouseLeave={(e) => {
                 if (!disabled) {
-                  e.currentTarget.style.background = "var(--color-surface-container-low, #f9fafb)";
-                  e.currentTarget.style.borderColor = "var(--color-border, #e5e7eb)";
+                  if (isRetroGameMode) {
+                    e.currentTarget.style.background = "#1a1a2e";
+                    e.currentTarget.style.color = "#00ffff";
+                    e.currentTarget.style.boxShadow = "0 0 8px rgba(0, 255, 255, 0.5)";
+                    e.currentTarget.style.transform = "translate(0, 0)";
+                  } else {
+                    e.currentTarget.style.background = "var(--color-surface-container-low, #f9fafb)";
+                    e.currentTarget.style.borderColor = "var(--color-border, #e5e7eb)";
+                  }
                 }
               }}
             >
@@ -122,7 +140,7 @@ export const DateRangePicker: React.FC<Props> = ({
               display: "block",
               fontSize: "11px",
               fontWeight: "600",
-              color: "var(--color-text-sub, #6b7280)",
+              color: isRetroGameMode ? "#00ff88" : "var(--color-text-sub, #6b7280)",
               marginBottom: "6px",
             }}
           >
@@ -138,17 +156,18 @@ export const DateRangePicker: React.FC<Props> = ({
               style={{
                 width: "100%",
                 padding: "8px 12px",
-                borderRadius: "8px",
+                borderRadius: isRetroGameMode ? "0" : "8px",
                 border: isDateValid || !startDate
-                  ? "1px solid var(--color-border, #d1d5db)"
+                  ? (isRetroGameMode ? "2px solid #00ffff" : "1px solid var(--color-border, #d1d5db)")
                   : "1px solid var(--color-error, #ef4444)",
                 fontSize: "14px",
                 background: disabled
-                  ? "var(--color-surface-container-lowest, #ffffff)"
-                  : "white",
-                color: "var(--color-text-main, #111827)",
+                  ? (isRetroGameMode ? "#0a0a0f" : "var(--color-surface-container-lowest, #ffffff)")
+                  : (isRetroGameMode ? "#0a0a0f" : "white"),
+                color: isRetroGameMode ? "#00ffff" : "var(--color-text-main, #111827)",
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled ? 0.6 : 1,
+                boxShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 255, 0.3)" : "none",
               }}
             />
           </div>
@@ -159,8 +178,9 @@ export const DateRangePicker: React.FC<Props> = ({
             display: "flex",
             alignItems: "center",
             marginTop: "20px",
-            color: "var(--color-text-sub, #6b7280)",
+            color: isRetroGameMode ? "#00ffff" : "var(--color-text-sub, #6b7280)",
             fontSize: "14px",
+            textShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 255, 0.6)" : "none",
           }}
         >
           →
@@ -172,7 +192,7 @@ export const DateRangePicker: React.FC<Props> = ({
               display: "block",
               fontSize: "11px",
               fontWeight: "600",
-              color: "var(--color-text-sub, #6b7280)",
+              color: isRetroGameMode ? "#00ff88" : "var(--color-text-sub, #6b7280)",
               marginBottom: "6px",
             }}
           >
@@ -189,17 +209,18 @@ export const DateRangePicker: React.FC<Props> = ({
               style={{
                 width: "100%",
                 padding: "8px 12px",
-                borderRadius: "8px",
+                borderRadius: isRetroGameMode ? "0" : "8px",
                 border: isDateValid || !endDate
-                  ? "1px solid var(--color-border, #d1d5db)"
+                  ? (isRetroGameMode ? "2px solid #00ffff" : "1px solid var(--color-border, #d1d5db)")
                   : "1px solid var(--color-error, #ef4444)",
                 fontSize: "14px",
                 background: disabled
-                  ? "var(--color-surface-container-lowest, #ffffff)"
-                  : "white",
-                color: "var(--color-text-main, #111827)",
+                  ? (isRetroGameMode ? "#0a0a0f" : "var(--color-surface-container-lowest, #ffffff)")
+                  : (isRetroGameMode ? "#0a0a0f" : "white"),
+                color: isRetroGameMode ? "#00ffff" : "var(--color-text-main, #111827)",
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled ? 0.6 : 1,
+                boxShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 255, 0.3)" : "none",
               }}
             />
           </div>
@@ -211,7 +232,7 @@ export const DateRangePicker: React.FC<Props> = ({
         <div
           style={{
             fontSize: "11px",
-            color: "var(--color-text-sub, #6b7280)",
+            color: isRetroGameMode ? "#00ff88" : "var(--color-text-sub, #6b7280)",
             textAlign: "right",
           }}
         >
@@ -224,8 +245,9 @@ export const DateRangePicker: React.FC<Props> = ({
         <div
           style={{
             fontSize: "11px",
-            color: "var(--color-error, #ef4444)",
+            color: isRetroGameMode ? "#ff00ff" : "var(--color-error, #ef4444)",
             textAlign: "center",
+            textShadow: isRetroGameMode ? "0 0 5px rgba(255, 0, 255, 0.6)" : "none",
           }}
         >
           開始日は終了日より前である必要があります
@@ -234,3 +256,30 @@ export const DateRangePicker: React.FC<Props> = ({
     </div>
   );
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

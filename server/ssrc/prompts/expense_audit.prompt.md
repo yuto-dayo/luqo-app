@@ -11,6 +11,10 @@
 - **amount**: 税込合計金額（数値）。不明な場合は null。
 - **merchant**: 店舗名・支払先。
 - **date**: 領収書の日付 (YYYY-MM-DD形式)。不明な場合は今日の日付。
+- **siteName**: 現場名（例: "練馬区S邸 リノベーション"）。
+  - 領収書に「現場名」「工事名」「物件名」「施工場所」「備考」などの欄がある場合は、そこから抽出してください。
+  - 「○○邸」「○○マンション」「○○ビル」などの物件名や、「リノベーション」「新築工事」などの工事種別が記載されている場合は、それらを組み合わせて抽出してください。
+  - 記載がない場合は null を返してください。
 - **category**: 以下のいずれかに分類してください。
   - `material` (材料費): ビス、木材、パテ、塗料など
   - `tool` (工具器具): ドライバー、サンダー、腰袋など（5万円未満）
@@ -18,6 +22,11 @@
   - `food` (会議費/福利厚生): 現場での弁当、飲み物（アルコール無し）
   - `entertainment` (接待交際費): アルコールを含む飲食、贈答品
   - `other` (その他): 通信費、消耗品など
+- **items**: 購入した品名のリスト（明細がある場合）。レシートや領収書の明細行から抽出してください。
+  - 各品名は `{ "name": "品名" }` の形式で記録
+  - 数量や単価が記載されている場合は `quantity` と `unitPrice` も含める
+  - 明細がない場合や読み取れない場合は空配列 `[]` を返す
+  - 例: `[{ "name": "ビス 3.5×25", "quantity": 2, "unitPrice": 500 }, { "name": "養生テープ" }]`
 
 ### 2. リスク判定ルール (Risk Logic)
 
@@ -41,8 +50,16 @@
   "amount": number | null,
   "merchant": string,
   "date": string,
+  "siteName": string | null,
   "category": "material" | "tool" | "travel" | "food" | "entertainment" | "other",
   "description": "内容の短い要約 (例: コーナンでビスと養生テープ購入)",
+  "items": [
+    {
+      "name": "品名",
+      "quantity": number | null,  // 数量（読み取れる場合のみ）
+      "unitPrice": number | null   // 単価（読み取れる場合のみ）
+    }
+  ],
   "risk_level": "LOW" | "HIGH",
   "flag_reason": "Highの場合の理由 (Lowならnull)",
   "confidence": number // 0.0 ~ 1.0 (読み取りの確信度)

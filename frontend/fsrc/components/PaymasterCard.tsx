@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { apiClient } from "../lib/apiClient";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { Icon } from "./ui/Icon";
+import { useRetroGameMode } from "../hooks/useRetroGameMode";
 
 type Props = {
   currentStars?: number;
@@ -63,12 +64,19 @@ const formatYen = (value: number) => `¥${Math.round(value).toLocaleString()}`;
 
 export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
   const { showSnackbar } = useSnackbar();
+  const isRetroGameMode = useRetroGameMode();
 
   const [profit, setProfit] = useState(1_000_000);
   const [myTScore, setMyTScore] = useState(currentStars);
   const [days, setDays] = useState(20);
+  const [profitSource, setProfitSource] = useState<"manual" | "actual" | "predicted">("manual");
+  const [actualProfit, setActualProfit] = useState<number | null>(null);
+  const [predictedProfit, setPredictedProfit] = useState<number | null>(null);
+  const [loadingProfit, setLoadingProfit] = useState(false);
 
   const [teamScores, setTeamScores] = useState<number[]>([]);
+  const [teamMembers, setTeamMembers] = useState<Array<{ userId: string; name: string; score: number }>>([]);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
@@ -76,13 +84,66 @@ export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
   }, [currentStars]);
 
   useEffect(() => {
+    // 現在のユーザーIDを取得
+    const userId = typeof window !== "undefined" ? localStorage.getItem("luqo_user_id") : null;
+    setMyUserId(userId);
+  }, []);
+
+  // 会計データを取得（実績値と予測値）
+  useEffect(() => {
+    const loadProfitData = async () => {
+      setLoadingProfit(true);
+      try {
+        // 現在月の実績値を取得
+        const dashboardRes = await apiClient.get<any>("/api/v1/accounting/dashboard");
+        if (dashboardRes?.pl?.profit !== undefined) {
+          setActualProfit(dashboardRes.pl.profit);
+          // 初回のみ実績値をデフォルトに設定
+          setProfit((prev) => {
+            if (prev === 1_000_000) {
+              return dashboardRes.pl.profit;
+            }
+            return prev;
+          });
+          setProfitSource("actual");
+        }
+
+        // 月別データと予測値を取得
+        const monthlyRes = await apiClient.get<any>("/api/v1/accounting/monthly-profit");
+        if (monthlyRes?.ok && monthlyRes?.predicted?.profit !== undefined) {
+          setPredictedProfit(monthlyRes.predicted.profit);
+        }
+      } catch (e) {
+        console.error("Failed to load profit data", e);
+        // エラー時は手動入力にフォールバック
+      } finally {
+        setLoadingProfit(false);
+      }
+    };
+    void loadProfitData();
+  }, []); // 初回のみ実行
+
+  useEffect(() => {
     const loadTeamData = async () => {
       setLoadingStats(true);
       try {
         const res = await apiClient.get<any>("/api/v1/paymaster/team-stats");
-        if (res.ok && res.stats && Array.isArray(res.stats.scores)) {
-          const sorted = [...res.stats.scores].sort((a: number, b: number) => b - a);
-          setTeamScores(sorted);
+        if (res.ok && res.stats) {
+          // 後方互換性: membersが存在する場合はそれを使用、なければscoresから構築
+          if (Array.isArray(res.stats.members) && res.stats.members.length > 0) {
+            setTeamMembers(res.stats.members);
+            const scores = res.stats.members.map((m: any) => m.score);
+            setTeamScores(scores);
+          } else if (Array.isArray(res.stats.scores)) {
+            const sorted = [...res.stats.scores].sort((a: number, b: number) => b - a);
+            setTeamScores(sorted);
+            // scoresからmembersを構築（名前はUnknown）
+            setTeamMembers(sorted.map((score, idx) => ({
+              userId: `user_${idx}`,
+              name: "Unknown",
+              score,
+            })));
+          }
         }
       } catch (e) {
         console.error("Auto import failed", e);
@@ -188,7 +249,7 @@ export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
           gap: "32px",
         }}
       >
-        {/* 原資スライダー */}
+        {/* 原資スライダー（実績値/予測値対応） */}
         <div>
           <div
             style={{
@@ -211,23 +272,146 @@ export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
               <Icon name="money" size={18} />
               現場純利益 (The Pot)
             </label>
-            <span
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+              <span
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: "var(--color-text-main)",
+                }}
+              >
+                {formatYen(profit)}
+              </span>
+              {profitSource !== "manual" && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: profitSource === "actual" ? "#10b981" : "#f59e0b",
+                    fontWeight: 600,
+                  }}
+                >
+                  {profitSource === "actual" ? "📊 実績値" : "🔮 予測値"}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* データソース切り替えボタン */}
+          {(actualProfit !== null || predictedProfit !== null) && (
+            <div
               style={{
-                fontSize: 20,
-                fontWeight: 800,
-                color: "var(--color-text-main)",
+                display: "flex",
+                gap: 8,
+                marginBottom: 12,
+                flexWrap: "wrap",
               }}
             >
-              {formatYen(profit)}
-            </span>
-          </div>
+              {actualProfit !== null && (
+                <button
+                  onClick={() => {
+                    setProfit(actualProfit);
+                    setProfitSource("actual");
+                    showSnackbar("実績値に切り替えました", "info");
+                  }}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    border: "1px solid",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    background:
+                      profitSource === "actual"
+                        ? "#10b981"
+                        : "var(--color-surface)",
+                    color:
+                      profitSource === "actual"
+                        ? "white"
+                        : "var(--color-text-main)",
+                    borderColor:
+                      profitSource === "actual"
+                        ? "#10b981"
+                        : "var(--color-border)",
+                  }}
+                >
+                  📊 実績値: {formatYen(actualProfit)}
+                </button>
+              )}
+              {predictedProfit !== null && (
+                <button
+                  onClick={() => {
+                    setProfit(predictedProfit);
+                    setProfitSource("predicted");
+                    showSnackbar("予測値に切り替えました", "info");
+                  }}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    border: "1px solid",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    background:
+                      profitSource === "predicted"
+                        ? "#f59e0b"
+                        : "var(--color-surface)",
+                    color:
+                      profitSource === "predicted"
+                        ? "white"
+                        : "var(--color-text-main)",
+                    borderColor:
+                      profitSource === "predicted"
+                        ? "#f59e0b"
+                        : "var(--color-border)",
+                  }}
+                >
+                  🔮 予測値: {formatYen(predictedProfit)}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setProfitSource("manual");
+                  showSnackbar("手動入力モード", "info");
+                }}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: "1px solid",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  background:
+                    profitSource === "manual"
+                      ? "#64748b"
+                      : "var(--color-surface)",
+                  color:
+                    profitSource === "manual"
+                      ? "white"
+                      : "var(--color-text-main)",
+                  borderColor:
+                    profitSource === "manual"
+                      ? "#64748b"
+                      : "var(--color-border)",
+                }}
+              >
+                ✏️ 手動入力
+              </button>
+            </div>
+          )}
+
           <input
             type="range"
             min={500_000}
             max={5_000_000}
             step={10_000}
             value={profit}
-            onChange={(e) => setProfit(Number(e.target.value))}
+            onChange={(e) => {
+              setProfit(Number(e.target.value));
+              setProfitSource("manual");
+            }}
             style={{
               width: "100%",
               accentColor: "#0f172a",
@@ -248,6 +432,18 @@ export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
             <span>¥50万</span>
             <span>¥500万</span>
           </div>
+          {loadingProfit && (
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 11,
+                color: "#94a3b8",
+                textAlign: "center",
+              }}
+            >
+              データ読み込み中...
+            </div>
+          )}
         </div>
 
         <div style={{ height: 1, background: "var(--color-border)" }} />
@@ -394,7 +590,7 @@ export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
           </div>
         </div>
 
-        {/* チーム分布の可視化 */}
+        {/* チームランキング表示（Google流） */}
         <div
           style={{
             background: "var(--color-surface-container-low)",
@@ -407,85 +603,273 @@ export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: 16,
+              marginBottom: 20,
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Icon name="construction" size={18} color="#64748b" />
               <span
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 700,
                   color: "#475569",
                   textTransform: "uppercase",
+                  letterSpacing: "0.5px",
                 }}
               >
-                Team Distribution
+                Team Ranking
               </span>
             </div>
-            <span style={{ fontSize: 12, color: "#64748b" }}>
+            <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
               {loadingStats
                 ? "読み込み中..."
-                : `${prediction.otherScores.length + 1}名が稼働中`}
+                : `${teamMembers.length}名`}
             </span>
           </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {/* ランキングリスト */}
+          {loadingStats ? (
+            <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8" }}>
+              読み込み中...
+            </div>
+          ) : teamMembers.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {teamMembers.map((member, idx) => {
+                const rank = idx + 1;
+                const isMe = myUserId && member.userId === myUserId;
+                const isSimulated = isMe && isSimulating;
+                const displayScore = isMe ? myTScore : member.score;
+                const maxScore = Math.max(...teamMembers.map(m => m.score), myTScore, 170);
+                
+                // 報酬シミュレーション（このメンバーの場合）
+                const memberEffort = calculateEffort(displayScore, days, 2.0);
+                const allEfforts = teamMembers
+                  .map(m => calculateEffort(isMe && m.userId === myUserId ? myTScore : m.score, days, 2.0))
+                  .reduce((sum, e) => sum + e, 0);
+                const memberRatio = allEfforts > 0 ? memberEffort / allEfforts : 0;
+                const estimatedBasePay = Math.round(profit * memberRatio);
+                const estimatedPeerPay = 0; // 簡略化のため0
+                const estimatedTotalPay = estimatedBasePay + estimatedPeerPay;
+
+                return (
+                  <div
+                    key={member.userId}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "12px 16px",
+                      borderRadius: 12,
+                      background: isMe
+                        ? isSimulated
+                          ? "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
+                          : "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)"
+                        : "var(--color-surface)",
+                      border: isMe
+                        ? `2px solid ${isSimulated ? "#fcd34d" : "#3b82f6"}`
+                        : "1px solid var(--color-border)",
+                      boxShadow: isMe ? "0 2px 8px rgba(0,0,0,0.1)" : "none",
+                      transition: "all 0.2s ease",
+                      position: "relative",
+                      cursor: "pointer",
+                    }}
+                    title={`${member.name}: ${displayScore}pt | 推定報酬: ${formatYen(estimatedTotalPay)}`}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateX(4px)";
+                      e.currentTarget.style.boxShadow = isMe 
+                        ? "0 4px 12px rgba(0,0,0,0.15)" 
+                        : "0 2px 8px rgba(0,0,0,0.1)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateX(0)";
+                      e.currentTarget.style.boxShadow = isMe ? "0 2px 8px rgba(0,0,0,0.1)" : "none";
+                    }}
+                  >
+                    {/* 順位 */}
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        background: isMe
+                          ? isSimulated
+                            ? "#fbbf24"
+                            : "#3b82f6"
+                          : rank <= 3
+                          ? "#10b981"
+                          : "#e2e8f0",
+                        color: isMe || rank <= 3 ? "white" : "#64748b",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: 800,
+                        fontSize: 13,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {rank <= 3 ? ["🥇", "🥈", "🥉"][rank - 1] : rank}
+                    </div>
+
+                    {/* 名前とスコア */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span
+                            style={{
+                              fontWeight: isMe ? 700 : 600,
+                              fontSize: 14,
+                              color: isMe
+                                ? isSimulated
+                                  ? "#d97706"
+                                  : "#1d4ed8"
+                                : "var(--color-text-main)",
+                            }}
+                          >
+                            {member.name}
+                          </span>
+                          {isMe && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                padding: "2px 6px",
+                                borderRadius: isRetroGameMode ? 0 : 4,
+                                background: isRetroGameMode
+                                  ? "#0a0a0f"
+                                  : isSimulated
+                                  ? "#fef3c7"
+                                  : "#dbeafe",
+                                color: isRetroGameMode
+                                  ? "#00ffff"
+                                  : isSimulated
+                                  ? "#d97706"
+                                  : "#1d4ed8",
+                                border: isRetroGameMode ? "1px solid #00ffff" : "none",
+                                boxShadow: isRetroGameMode
+                                  ? "0 0 5px rgba(0, 255, 255, 0.3)"
+                                  : "none",
+                                textShadow: isRetroGameMode
+                                  ? "0 0 5px rgba(0, 255, 255, 0.6)"
+                                  : "none",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {isSimulating ? "シミュレーション中" : "あなた"}
+                            </span>
+                          )}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontWeight: 700,
+                              fontSize: 15,
+                              color: isMe
+                                ? isSimulated
+                                  ? "#d97706"
+                                  : "#1d4ed8"
+                                : "var(--color-text-main)",
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {displayScore}
+                          </span>
+                          <span style={{ fontSize: 11, color: "#94a3b8" }}>/ 170</span>
+                        </div>
+                      </div>
+
+                      {/* スコアバー（可視化） */}
+                      <div
+                        style={{
+                          marginTop: 8,
+                          height: 6,
+                          borderRadius: 3,
+                          background: "var(--color-border)",
+                          overflow: "hidden",
+                          position: "relative",
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${(displayScore / maxScore) * 100}%`,
+                            background: isMe
+                              ? isSimulated
+                                ? "linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%)"
+                                : "linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)"
+                              : rank <= 3
+                              ? "linear-gradient(90deg, #10b981 0%, #059669 100%)"
+                              : "linear-gradient(90deg, #64748b 0%, #475569 100%)",
+                            transition: "width 0.3s ease",
+                            boxShadow: isMe ? "0 0 8px rgba(59, 130, 246, 0.3)" : "none",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* シミュレーション中の自分の位置を表示 */}
+              {isSimulating && myUserId && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: "12px 16px",
+                    borderRadius: 8,
+                    background: "#fffbeb",
+                    border: "1px solid #fcd34d",
+                    fontSize: 12,
+                    color: "#92400e",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <strong>💡 シミュレーション中:</strong> あなたのスコアを{" "}
+                  <strong>{myTScore}pt</strong> に設定しています。
+                  {teamMembers.find((m) => m.userId === myUserId) && (
+                    <span>
+                      {" "}
+                      現在の実力は{" "}
+                      <strong>
+                        {teamMembers.find((m) => m.userId === myUserId)?.score}pt
+                      </strong>
+                      です。
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
             <div
               style={{
-                padding: "6px 12px",
-                borderRadius: 8,
-                background: isSimulating ? "#fffbeb" : "#eff6ff",
-                border: `1px solid ${isSimulating ? "#fcd34d" : "#bfdbfe"}`,
-                color: isSimulating ? "#d97706" : "#1d4ed8",
-                fontWeight: 700,
-                fontSize: 12,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+                textAlign: "center",
+                padding: "20px",
+                color: "#94a3b8",
+                fontSize: 13,
               }}
             >
-              <Icon name="star" size={12} />
-              {myTScore} <span style={{ fontSize: 10, opacity: 0.8 }}>(Me)</span>
+              チームメンバーのデータがありません
             </div>
-
-            {prediction.otherScores.map((score, idx) => (
-              <div
-                key={idx}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 8,
-                  background: "white",
-                  border: "1px solid #e2e8f0",
-                  color: "#64748b",
-                  fontWeight: 600,
-                  fontSize: 12,
-                }}
-              >
-                {score}
-              </div>
-            ))}
-
-            {prediction.otherScores.length === 0 && !loadingStats && (
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "#94a3b8",
-                  fontStyle: "italic",
-                }}
-              >
-                No other members active
-              </span>
-            )}
-          </div>
+          )}
 
           <p
             style={{
               fontSize: 11,
               color: "#94a3b8",
-              marginTop: 12,
-              lineHeight: 1.4,
+              marginTop: 16,
+              lineHeight: 1.5,
             }}
           >
             ※ チーム全員のTスコア状況を反映しています。

@@ -1,90 +1,129 @@
-import { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
-import DashboardPage from "./pages/DashboardPage";
-import SettingsPage from "./pages/SettingsPage";
-import LoginPage from "./pages/loginpage";
-import AppShell from "./components/layout/AppShell";
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
-import "./App.css";
-import "./styles/global.css";
-
-import TScorePage from "./pages/TScorePage";
+import AppShell from "./components/layout/AppShell";
+import LoginPage from "./pages/loginpage";
+import DashboardPage from "./pages/DashboardPage";
 import AccountingPage from "./pages/AccountingPage";
+import SettingsPage from "./pages/SettingsPage";
+import TScorePage from "./pages/TScorePage";
+import StarSettingsPage from "./pages/StarSettingsPage";
+import PaymasterPage from "./pages/PaymasterPage";
+import ClientMasterPage from "./pages/ClientMasterPage";
 import { SnackbarProvider } from "./contexts/SnackbarContext";
 import { ConfirmDialogProvider } from "./contexts/ConfirmDialogContext";
-import { supabase } from "./services/supabase";
-import { useSetUserId } from "./hooks/useLuqoStore";
-import StarSettingsPage from "./pages/StarSettingsPage";
+import { NotificationProvider } from "./contexts/NotificationContext";
+import { ModalProvider } from "./contexts/ModalContext";
+import "./App.css";
 
-// 保護されたルートのレイアウト
-const ProtectedLayout = () => {
+// 認証が必要なページをラップするコンポーネント
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
-  );
+  return <AppShell>{children}</AppShell>;
 };
 
-export default function App() {
-  const { isAuthenticated } = useAuth();
-  const setUserId = useSetUserId();
-
-  // 認証状態変化に追随してトークンとユーザーIDを同期
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-          if (session?.access_token) {
-            localStorage.setItem("session_token", session.access_token);
-          }
-          if (session?.user?.id) {
-            setUserId(session.user.id);
-            localStorage.setItem("luqo_user_id", session.user.id);
-          }
-        } else if (event === "SIGNED_OUT") {
-          localStorage.removeItem("session_token");
-          localStorage.removeItem("luqo_user_id");
-          setUserId(null);
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [setUserId]);
-
+const App: React.FC = () => {
   return (
     <SnackbarProvider>
       <ConfirmDialogProvider>
-        <BrowserRouter>
+        <NotificationProvider>
+          <ModalProvider>
+            <BrowserRouter>
           <Routes>
-            {/* ログインページ */}
+            {/* ログインページ（認証不要） */}
+            <Route path="/login" element={<LoginPage />} />
+
+            {/* 認証が必要なページ */}
             <Route
-              path="/login"
-              element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounting"
+              element={
+                <ProtectedRoute>
+                  <AccountingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tscore"
+              element={
+                <ProtectedRoute>
+                  <TScorePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tscore/:userId"
+              element={
+                <ProtectedRoute>
+                  <TScorePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/star-settings"
+              element={
+                <ProtectedRoute>
+                  <StarSettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/stars"
+              element={
+                <ProtectedRoute>
+                  <StarSettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/clients"
+              element={
+                <ProtectedRoute>
+                  <ClientMasterPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/paymaster"
+              element={
+                <ProtectedRoute>
+                  <PaymasterPage />
+                </ProtectedRoute>
+              }
             />
 
-            {/* 保護されたルート */}
-            <Route element={<ProtectedLayout />}>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/t-score/:userId?" element={<TScorePage />} />
-              <Route path="/accounting" element={<AccountingPage />} />
-              <Route path="/settings/stars" element={<StarSettingsPage />} />
-            </Route>
-
-            {/* 404 / Fallback */}
+            {/* 未定義のルートはダッシュボードにリダイレクト */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
+          </ModalProvider>
+        </NotificationProvider>
       </ConfirmDialogProvider>
     </SnackbarProvider>
   );
-}
+};
+
+export default App;
+
+
+

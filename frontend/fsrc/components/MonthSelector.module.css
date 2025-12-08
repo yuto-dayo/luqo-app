@@ -1,0 +1,159 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  background: var(--color-surface);
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+  transition: all var(--motion-duration) var(--motion-easing);
+  position: relative;
+  min-width: 200px;
+}
+
+.container:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-border-hover);
+}
+
+.button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-sub);
+  transition: all var(--motion-duration) var(--motion-easing);
+  border-radius: var(--radius-sm);
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--color-surface-container-low);
+  color: var(--color-text-main);
+  transform: scale(1.1);
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+.buttonRight svg {
+  transform: scaleX(-1);
+}
+
+.monthText {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  min-width: 100px;
+  text-align: center;
+  letter-spacing: 0.3px;
+  user-select: none;
+}
+
+/* Cyberpunk Mode対応（未使用 - 将来の拡張用に保持） */
+.cyberpunk .container {
+  background: var(--color-surface-dim, #1a1a1a);
+  border: 2px solid var(--color-seed, #00ffff);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+}
+
+.cyberpunk .container:hover {
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.5);
+  border-color: var(--color-seed, #00ffff);
+}
+
+.cyberpunk .button {
+  color: var(--color-seed, #00ffff);
+}
+
+.cyberpunk .button:hover:not(:disabled) {
+  background: rgba(0, 255, 255, 0.1);
+  box-shadow: 0 0 4px rgba(0, 255, 255, 0.3);
+}
+
+.cyberpunk .monthText {
+  color: var(--color-seed, #00ffff);
+  font-family: 'Courier New', monospace;
+}
+
+/* Retro Game Mode対応 - 8bit Game Style */
+body.retro-game .container {
+  background: #1a1a2e !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.5),
+    4px 4px 0px #000000 !important;
+  border-radius: 0 !important;
+  padding: 8px 16px !important;
+}
+
+body.retro-game .container:hover {
+  box-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.8),
+    2px 2px 0px #000000 !important;
+  transform: translate(2px, 2px) !important;
+}
+
+body.retro-game .button {
+  border: 2px solid #00ffff !important;
+  background: #1a1a2e !important;
+  color: #00ffff !important;
+  box-shadow: 
+    0 0 8px rgba(0, 255, 255, 0.5),
+    2px 2px 0px #000000 !important;
+  border-radius: 0 !important;
+  font-weight: 700 !important;
+}
+
+body.retro-game .button:hover:not(:disabled) {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  box-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.8),
+    2px 2px 0px #000000 !important;
+  transform: translate(2px, 2px) !important;
+}
+
+body.retro-game .monthText {
+  color: #00ffff !important;
+  font-family: 'DotGothic16', 'Press Start 2P', monospace !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.8) !important;
+}
+
+/* モバイル対応 */
+@media (max-width: 600px) {
+  .container {
+    min-width: 180px;
+    padding: 6px 12px;
+    gap: var(--spacing-sm);
+  }
+
+  .monthText {
+    font-size: 14px;
+    min-width: 90px;
+  }
+
+  .button {
+    min-width: 28px;
+    min-height: 28px;
+    padding: 6px;
+  }
+}
+
+
+

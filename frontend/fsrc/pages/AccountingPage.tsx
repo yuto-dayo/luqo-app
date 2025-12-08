@@ -1,12 +1,18 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { apiClient } from "../lib/apiClient";
 import { SalesInputModal } from "../components/accounting/SalesInputModal";
+import { InvoiceGeneratorModal } from "../components/accounting/InvoiceGeneratorModal";
+import { DateRangePicker } from "../components/DateRangePicker";
 import type { AccountingDashboardData, HistoryItem } from "../types/accounting";
 import { Icon } from "../components/ui/Icon";
 import { useConfirm } from "../contexts/ConfirmDialogContext";
 import { useSnackbar } from "../contexts/SnackbarContext";
+import { useModal } from "../contexts/ModalContext";
 import { useAccountingRealtime } from "../hooks/useAccountingRealtime";
 import { fetchUserProfiles } from "../lib/api";
+import { useRetroGameMode } from "../hooks/useRetroGameMode";
+import { loadUserNamesCache, saveUserNamesCache } from "../lib/cacheUtils";
 
 // 日付フォーマット用ヘルパー
 const formatDateLabel = (dateStr: string) => {
@@ -27,17 +33,44 @@ const formatDateLabel = (dateStr: string) => {
   return target.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short" });
 };
 
+type FilterType = "all" | "sales" | "expenses";
+
 export default function AccountingPage() {
+  const isRetroGameMode = useRetroGameMode();
+  const { isAnyModalOpen } = useModal();
   const [data, setData] = useState<AccountingDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false); // リアルタイム更新時のローディング（サイレント）
   const [userNames, setUserNames] = useState<Record<string, string>>({}); // userId -> name のマップ
+  const [voidModal, setVoidModal] = useState<{ isOpen: boolean; item: HistoryItem | null }>({ isOpen: false, item: null });
+  const [voidReason, setVoidReason] = useState("");
+  
+  // フィルターと期間設定のstate
+  const [filterType, setFilterType] = useState<FilterType>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  
   const { confirm } = useConfirm();
   const { showSnackbar } = useSnackbar();
+  const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
+  const isFetchingRef = useRef<boolean>(false);
+  const showSnackbarRef = useRef(showSnackbar);
+  const FETCH_DEBOUNCE_MS = 1000; // 1秒以内の連続呼び出しを防ぐ
 
-  // データ取得関数（useCallbackでメモ化してRealtimeフックから参照可能に）
-  const fetchData = useCallback(async (silent: boolean = false) => {
+  // showSnackbarをrefで保持（依存配列から除外するため）
+  useEffect(() => {
+    showSnackbarRef.current = showSnackbar;
+  }, [showSnackbar]);
+
+  // データ取得関数（内部実装）
+  const fetchDataInternal = useCallback(async (silent: boolean = false) => {
+    if (isFetchingRef.current) return; // 既に取得中の場合はスキップ
+    isFetchingRef.current = true;
+    
     try {
       if (!silent) {
         setLoading(true);
@@ -48,30 +81,75 @@ export default function AccountingPage() {
       const res = await apiClient.get<AccountingDashboardData>("/api/v1/accounting/dashboard");
       setData(res);
       
-      // ユーザー名を取得
+      // ユーザー名を取得（キャッシュを活用、不足分のみ取得）
       if (res.opsRanking && res.opsRanking.length > 0) {
         const userIds = res.opsRanking.map((rank) => rank.userId);
-        const profiles = await fetchUserProfiles(userIds);
-        setUserNames(profiles);
+        const profilesMap: Record<string, string> = {};
+        
+        // 1. まずキャッシュから取得
+        const cachedNames = loadUserNamesCache();
+        Object.assign(profilesMap, cachedNames);
+        
+        // 2. まだ取得できていないユーザー名のみ追加取得
+        const missingUserIds = userIds.filter((id) => !profilesMap[id]);
+        if (missingUserIds.length > 0) {
+          const additionalProfiles = await fetchUserProfiles(missingUserIds);
+          Object.assign(profilesMap, additionalProfiles);
+          // 取得したユーザー名をキャッシュに保存
+          saveUserNamesCache(profilesMap);
+        }
+        
+        setUserNames(profilesMap);
       }
       
       // サイレント更新の場合は通知を表示しない（ユーザー体験のため）
     } catch (e) {
       console.error(e);
       if (!silent) {
-        showSnackbar("データの取得に失敗しました", "error");
+        showSnackbarRef.current("データの取得に失敗しました", "error");
       }
       // サイレント更新でエラーが起きてもユーザーに通知しない（初回読み込みではないため）
     } finally {
       setLoading(false);
       setIsRefreshing(false);
+      isFetchingRef.current = false;
     }
-  }, [showSnackbar]);
+  }, []); // 依存配列を空にして、再作成を防ぐ
 
-  // 初回データ読み込み
+  // デバウンス付きのfetchData
+  const fetchData = useCallback((silent: boolean = false) => {
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchTimeRef.current;
+    
+    // 既にスケジュールされているタイマーをクリア
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+    
+    if (timeSinceLastFetch < FETCH_DEBOUNCE_MS) {
+      // デバウンス期間内なら、残り時間後に実行
+      fetchTimeoutRef.current = setTimeout(() => {
+        lastFetchTimeRef.current = Date.now();
+        void fetchDataInternal(silent);
+      }, FETCH_DEBOUNCE_MS - timeSinceLastFetch);
+    } else {
+      // デバウンス期間を過ぎているなら即座に実行
+      lastFetchTimeRef.current = now;
+      void fetchDataInternal(silent);
+    }
+  }, [fetchDataInternal]);
+
+  // 初回データ読み込み（初回のみ実行）
   useEffect(() => {
     void fetchData(false);
-  }, [fetchData]);
+    // クリーンアップ: タイマーをクリア
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 依存配列を空にして、初回のみ実行
 
   // リアルタイム更新の統合（ページがフォーカスされている時のみ有効）
   useAccountingRealtime(() => {
@@ -79,13 +157,47 @@ export default function AccountingPage() {
     void fetchData(true);
   }, true);
 
+  // フィルターと期間設定に基づいて履歴をフィルタリング
+  const filteredHistory = useMemo(() => {
+    if (!data?.history) return [];
+
+    let filtered = [...data.history];
+
+    // フィルタータイプでフィルタリング
+    if (filterType === "sales") {
+      filtered = filtered.filter((item) => item.kind === "sale");
+    } else if (filterType === "expenses") {
+      filtered = filtered.filter((item) => item.kind === "expense");
+    }
+
+    // 期間でフィルタリング
+    if (startDate && endDate) {
+      filtered = filtered.filter((item) => {
+        const itemDate = item.date.split("T")[0]; // YYYY-MM-DD形式に変換
+        return itemDate >= startDate && itemDate <= endDate;
+      });
+    } else if (startDate) {
+      filtered = filtered.filter((item) => {
+        const itemDate = item.date.split("T")[0];
+        return itemDate >= startDate;
+      });
+    } else if (endDate) {
+      filtered = filtered.filter((item) => {
+        const itemDate = item.date.split("T")[0];
+        return itemDate <= endDate;
+      });
+    }
+
+    return filtered;
+  }, [data?.history, filterType, startDate, endDate]);
+
   // ★追加: 履歴を日付でグルーピングするロジック
   const groupedHistory = useMemo(() => {
-    if (!data?.history) return [];
+    if (!filteredHistory || filteredHistory.length === 0) return [];
 
     const groups: { title: string; items: HistoryItem[] }[] = [];
     
-    data.history.forEach((item) => {
+    filteredHistory.forEach((item) => {
       // 日付文字列(YYYY-MM-DD)またはISO文字列から日付部分を抽出
       const dateKey = item.date.split("T")[0];
       const label = formatDateLabel(item.date);
@@ -99,27 +211,61 @@ export default function AccountingPage() {
     });
 
     return groups;
-  }, [data?.history]);
+  }, [filteredHistory]);
+
+  // 期間のクイック選択ハンドラー
+  const handleQuickSelect = useCallback((days: number) => {
+    const end = new Date();
+    const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+    setEndDate(formatDateForInput(end));
+    setStartDate(formatDateForInput(start));
+    setShowDatePicker(false);
+  }, []);
+
+  // 日付をYYYY-MM-DD形式にフォーマット
+  const formatDateForInput = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   const handleDelete = async (item: HistoryItem) => {
-    const message = `この取引を取り消しますか？\n\n${item.date}\n${item.title}\n¥${Math.abs(item.amount).toLocaleString()}\n\n※獲得したOpsポイントも取り消されます。`;
+    // 取り消し理由入力モーダルを開く
+    setVoidModal({ isOpen: true, item });
+    setVoidReason("");
+  };
+
+  const handleVoidConfirm = async () => {
+    if (!voidModal.item) return;
+    
+    // 取り消し理由のバリデーション
+    if (!voidReason.trim()) {
+      showSnackbar("取り消し理由を入力してください", "error");
+      return;
+    }
+
+    const message = `この取引を逆仕訳（取り消し）しますか？\n\n${voidModal.item.date}\n${voidModal.item.title}\n¥${Math.abs(voidModal.item.amount).toLocaleString()}\n\n理由: ${voidReason}\n\n※獲得したOpsポイントも返還されます。\n※元の取引は削除されず、逆仕訳として記録されます。`;
 
     if (await confirm(message)) {
       try {
         setLoading(true);
         const res = await apiClient.post<{ ok: boolean, message: string }>(
           "/api/v1/accounting/void",
-          { eventId: item.id }
+          { eventId: voidModal.item.id, reason: voidReason.trim() }
         );
 
         if (res.ok) {
-          showSnackbar("取り消しました", "info");
+          showSnackbar("逆仕訳（取り消し）を記録しました", "info");
+          setVoidModal({ isOpen: false, item: null });
+          setVoidReason("");
           // 取り消し後は即座にデータを再取得（リアルタイム更新もあるが、確実に反映させるため）
           void fetchData(false);
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
-        showSnackbar("取り消しに失敗しました", "error");
+        const errorMessage = e?.response?.data?.error || "取り消しに失敗しました";
+        showSnackbar(errorMessage, "error");
       } finally {
         setLoading(false);
       }
@@ -189,10 +335,144 @@ export default function AccountingPage() {
 
           {/* History (Grouped) */}
           <section>
-            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#475569", marginBottom: 12, display: "flex", alignItems: "center", gap: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              <Icon name="info" size={16} color="#64748b" />
-              Recent History
-            </h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: "12px" }}>
+              <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#475569", display: "flex", alignItems: "center", gap: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                <Icon name="info" size={16} color="#64748b" />
+                Recent History
+              </h3>
+              
+              {/* フィルタートグルスイッチ */}
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <button
+                  onClick={() => setFilterType("all")}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: filterType === "all" ? 700 : 600,
+                    borderRadius: "8px",
+                    border: "1px solid",
+                    borderColor: filterType === "all" ? "#2563eb" : "#e5e7eb",
+                    background: filterType === "all" ? "#2563eb" : "white",
+                    color: filterType === "all" ? "white" : "#64748b",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  全て
+                </button>
+                <button
+                  onClick={() => setFilterType("sales")}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: filterType === "sales" ? 700 : 600,
+                    borderRadius: "8px",
+                    border: "1px solid",
+                    borderColor: filterType === "sales" ? "#0284c7" : "#e5e7eb",
+                    background: filterType === "sales" ? "#0284c7" : "white",
+                    color: filterType === "sales" ? "white" : "#64748b",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  売上のみ
+                </button>
+                <button
+                  onClick={() => setFilterType("expenses")}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: filterType === "expenses" ? 700 : 600,
+                    borderRadius: "8px",
+                    border: "1px solid",
+                    borderColor: filterType === "expenses" ? "#ef4444" : "#e5e7eb",
+                    background: filterType === "expenses" ? "#ef4444" : "white",
+                    color: filterType === "expenses" ? "white" : "#64748b",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  経費のみ
+                </button>
+              </div>
+            </div>
+
+            {/* 期間設定UI */}
+            <div style={{ 
+              marginBottom: 16, 
+              padding: "16px", 
+              background: isRetroGameMode ? "#1a1a2e" : "#f8fafc", 
+              borderRadius: isRetroGameMode ? "0" : "12px", 
+              border: isRetroGameMode ? "2px solid #00ffff" : "1px solid #e2e8f0",
+              boxShadow: isRetroGameMode ? "0 0 10px rgba(0, 255, 255, 0.5), 4px 4px 0px #000000" : "none"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div style={{ 
+                  fontSize: "13px", 
+                  fontWeight: 600, 
+                  color: isRetroGameMode ? "#00ffff" : "#475569", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: 6,
+                  textShadow: isRetroGameMode ? "0 0 8px rgba(0, 255, 255, 0.8)" : "none"
+                }}>
+                  <Icon name="timer" size={14} color={isRetroGameMode ? "#00ffff" : "#64748b"} />
+                  期間設定
+                </div>
+                {(startDate || endDate) && (
+                  <button
+                    onClick={() => {
+                      setStartDate("");
+                      setEndDate("");
+                    }}
+                    style={{
+                      padding: "4px 8px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      borderRadius: isRetroGameMode ? "0" : "6px",
+                      border: isRetroGameMode ? "2px solid #00ffff" : "1px solid #cbd5e1",
+                      background: isRetroGameMode ? "#0a0a0f" : "white",
+                      color: isRetroGameMode ? "#00ffff" : "#64748b",
+                      cursor: "pointer",
+                      boxShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 255, 0.3)" : "none",
+                    }}
+                  >
+                    クリア
+                  </button>
+                )}
+              </div>
+              <DateRangePicker
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                onQuickSelect={handleQuickSelect}
+              />
+            </div>
+
+            {/* フィルター適用中の表示 */}
+            {(filterType !== "all" || startDate || endDate) && (
+              <div style={{ 
+                marginBottom: 12, 
+                padding: "8px 12px", 
+                background: isRetroGameMode ? "#0a0a0f" : "#eff6ff", 
+                borderRadius: isRetroGameMode ? "0" : "8px",
+                border: isRetroGameMode ? "2px solid #00ffff" : "none",
+                boxShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 255, 0.3)" : "none",
+                fontSize: "12px", 
+                color: isRetroGameMode ? "#00ff88" : "#1e40af",
+                display: "flex",
+                alignItems: "center",
+                gap: 8
+              }}>
+                <Icon name="search" size={14} color={isRetroGameMode ? "#00ff88" : "#1e40af"} />
+                <span>
+                  {filteredHistory.length}件の履歴を表示中
+                  {filterType !== "all" && ` (${filterType === "sales" ? "売上" : "経費"}のみ)`}
+                  {(startDate || endDate) && ` (期間: ${startDate || "開始日未設定"} ～ ${endDate || "終了日未設定"})`}
+                </span>
+              </div>
+            )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
               {groupedHistory.map((group) => (
@@ -272,7 +552,16 @@ export default function AccountingPage() {
 
               {groupedHistory.length === 0 && (
                 <div style={{ textAlign: "center", padding: 40, color: "#94a3b8", fontSize: "13px", background: "#f1f5f9", borderRadius: "16px" }}>
-                  履歴はありません 🍃
+                  {(filterType !== "all" || startDate || endDate) ? (
+                    <>
+                      <div style={{ marginBottom: 8, fontWeight: 600 }}>該当する履歴が見つかりませんでした</div>
+                      <div style={{ fontSize: "11px", opacity: 0.8 }}>
+                        フィルター条件を変更してください
+                      </div>
+                    </>
+                  ) : (
+                    "履歴はありません 🍃"
+                  )}
                 </div>
               )}
             </div>
@@ -280,23 +569,52 @@ export default function AccountingPage() {
         </div>
       )}
 
-      <button
-        onClick={() => setIsModalOpen(true)}
-        style={{
-          position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)",
-          height: "56px", padding: "0 24px", borderRadius: "28px",
-          background: "#0f172a", color: "white", border: "none",
-          boxShadow: "0 8px 20px rgba(15, 23, 42, 0.4)",
-          display: "flex", alignItems: "center", gap: "12px",
-          fontSize: "16px", fontWeight: 700, cursor: "pointer", zIndex: 100,
-          transition: "transform 0.2s"
-        }}
-        onMouseEnter={e => e.currentTarget.style.transform = "translateX(-50%) scale(1.05)"}
-        onMouseLeave={e => e.currentTarget.style.transform = "translateX(-50%) scale(1)"}
-      >
-        <Icon name="pen" size={20} color="white" />
-        売上・経費登録
-      </button>
+      {/* 固定ボタン - Portalでbody直下に配置（モーダルが開いている時は非表示） */}
+      {typeof document !== "undefined" && !isAnyModalOpen &&
+        createPortal(
+          <div style={{
+            position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)",
+            display: "flex", gap: "12px", zIndex: 9990,
+            maxWidth: "calc(100vw - 48px)", // 画面端との余白を確保
+            padding: "0 12px" // 左右の余白を追加
+          }}>
+            <button
+              onClick={() => setIsInvoiceModalOpen(true)}
+              style={{
+                height: "56px", padding: "0 32px", borderRadius: "28px",
+                background: "#2563eb", color: "white", border: "none",
+                boxShadow: "0 8px 20px rgba(37, 99, 235, 0.4)",
+                display: "flex", alignItems: "center", gap: "12px",
+                fontSize: "16px", fontWeight: 700, cursor: "pointer",
+                transition: "transform 0.2s",
+                whiteSpace: "nowrap" // テキストの折り返しを防止
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+            >
+              <Icon name="document" size={20} color="white" />
+              請求書生成
+            </button>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              style={{
+                height: "56px", padding: "0 32px", borderRadius: "28px",
+                background: "#0f172a", color: "white", border: "none",
+                boxShadow: "0 8px 20px rgba(15, 23, 42, 0.4)",
+                display: "flex", alignItems: "center", gap: "12px",
+                fontSize: "16px", fontWeight: 700, cursor: "pointer",
+                transition: "transform 0.2s",
+                whiteSpace: "nowrap" // テキストの折り返しを防止
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+            >
+              <Icon name="pen" size={20} color="white" />
+              売上・経費登録
+            </button>
+          </div>,
+          document.body
+        )}
 
       <SalesInputModal
         isOpen={isModalOpen}
@@ -308,6 +626,115 @@ export default function AccountingPage() {
           }, 500);
         }}
       />
+
+      <InvoiceGeneratorModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+      />
+
+      {/* 取り消し理由入力モーダル */}
+      {voidModal.isOpen && voidModal.item && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            backdropFilter: "blur(2px)",
+            zIndex: 10001,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setVoidModal({ isOpen: false, item: null });
+              setVoidReason("");
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "24px",
+              padding: "24px",
+              width: "100%",
+              maxWidth: "400px",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+            }}
+          >
+            <h3 style={{ margin: "0 0 16px", fontSize: "18px", fontWeight: 700, color: "#1e293b" }}>
+              取引の逆仕訳（取り消し）
+            </h3>
+            <div style={{ marginBottom: "16px", padding: "12px", background: "#f1f5f9", borderRadius: "12px" }}>
+              <div style={{ fontSize: "14px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                {voidModal.item.title}
+              </div>
+              <div style={{ fontSize: "12px", color: "#64748b" }}>
+                {voidModal.item.date} · ¥{Math.abs(voidModal.item.amount).toLocaleString()}
+              </div>
+            </div>
+            <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
+              取り消し理由 <span style={{ color: "#ef4444" }}>*</span>
+            </label>
+            <textarea
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              placeholder="例: 入力ミス、重複登録、取引内容の変更など"
+              style={{
+                width: "100%",
+                minHeight: "80px",
+                padding: "12px",
+                borderRadius: "12px",
+                border: "1px solid #cbd5e1",
+                fontSize: "14px",
+                fontFamily: "inherit",
+                resize: "vertical",
+                marginBottom: "20px",
+              }}
+              autoFocus
+            />
+            <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "20px", lineHeight: 1.5 }}>
+              ※ 元の取引は削除されず、逆仕訳として記録されます（監査証跡のため）
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+              <button
+                onClick={() => {
+                  setVoidModal({ isOpen: false, item: null });
+                  setVoidReason("");
+                }}
+                style={{
+                  padding: "10px 24px",
+                  borderRadius: "100px",
+                  border: "none",
+                  background: "transparent",
+                  color: "#64748b",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleVoidConfirm}
+                disabled={!voidReason.trim()}
+                style={{
+                  padding: "10px 24px",
+                  borderRadius: "100px",
+                  border: "none",
+                  background: voidReason.trim() ? "#ef4444" : "#cbd5e1",
+                  color: "#ffffff",
+                  fontWeight: 600,
+                  cursor: voidReason.trim() ? "pointer" : "not-allowed",
+                  transition: "background 0.2s",
+                }}
+              >
+                逆仕訳を実行
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* リアルタイム更新中のインジケーター（右上に小さく表示） */}
       {isRefreshing && (

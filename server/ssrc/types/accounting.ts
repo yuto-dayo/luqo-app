@@ -39,6 +39,12 @@ export type DashboardResponse = {
   history: HistoryItem[];
 };
 
+export type ExpenseItem = {
+  name: string; // 品名
+  quantity?: number; // 数量（任意）
+  unitPrice?: number; // 単価（任意）
+};
+
 export type ExpenseManualInput = {
   amount: number;
   merchantName: string;
@@ -46,6 +52,7 @@ export type ExpenseManualInput = {
   category?: string;
   description?: string;
   siteName?: string;
+  items?: ExpenseItem[]; // 品名リスト（何を買ったか）
 };
 
 export type ExpensePayload = {
@@ -59,6 +66,7 @@ export type ExpensePayload = {
   voteId?: string;
   manual: boolean;
   siteName?: string;
+  items?: ExpenseItem[]; // 品名リスト
 };
 
 /**

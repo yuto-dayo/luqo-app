@@ -57,3 +57,81 @@ export function clearTScoreStateCache(userId: string) {
   const cacheKey = `luqo.tscore.state.v1.${userId}`;
   window.localStorage.removeItem(cacheKey);
 }
+
+// ============================================================
+// ユーザー名キャッシュ（グローバル）
+// ============================================================
+
+const USER_NAMES_CACHE_KEY = "luqo.userNames.v1";
+const USER_NAMES_CACHE_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 1週間
+
+type UserNamesCache = {
+  names: Record<string, string>; // userId -> name
+  timestamp: number;
+};
+
+/**
+ * ユーザー名キャッシュを取得
+ */
+export function loadUserNamesCache(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  
+  const raw = window.localStorage.getItem(USER_NAMES_CACHE_KEY);
+  if (!raw) return {};
+  
+  try {
+    const cached = JSON.parse(raw) as UserNamesCache;
+    const now = Date.now();
+    
+    // 期限切れチェック（1週間以上経過している場合は無効）
+    if (now - cached.timestamp > USER_NAMES_CACHE_DURATION_MS) {
+      window.localStorage.removeItem(USER_NAMES_CACHE_KEY);
+      return {};
+    }
+    
+    return cached.names;
+  } catch {
+    window.localStorage.removeItem(USER_NAMES_CACHE_KEY);
+    return {};
+  }
+}
+
+/**
+ * ユーザー名キャッシュを保存（既存のキャッシュとマージ）
+ */
+export function saveUserNamesCache(newNames: Record<string, string>) {
+  if (typeof window === "undefined") return;
+  
+  const existing = loadUserNamesCache();
+  const merged = { ...existing, ...newNames };
+  
+  window.localStorage.setItem(USER_NAMES_CACHE_KEY, JSON.stringify({
+    names: merged,
+    timestamp: Date.now(),
+  }));
+}
+
+/**
+ * 特定のユーザー名をキャッシュから取得
+ */
+export function getUserNameFromCache(userId: string): string | undefined {
+  const cache = loadUserNamesCache();
+  return cache[userId];
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

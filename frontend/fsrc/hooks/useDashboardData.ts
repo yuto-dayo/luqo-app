@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLuqoStore, useUserId, useHistoryLast, readHistoryOnce } from "../hooks/useLuqoStore";
 import { fetchBanditSuggestion, fetchTScoreState, type BanditSuggestResponse } from "../lib/api";
 import { STAR_CATALOG } from "../data/starCatalog";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { loadTScoreStateCache, saveTScoreStateCache } from "../lib/cacheUtils";
+import { useTScoreRealtime } from "./useTScoreRealtime";
 
 const BANDIT_CACHE_KEY = "luqo.banditMission.v1";
 
@@ -53,6 +54,7 @@ export function useDashboardData() {
     const [banditData, setBanditData] = useState<BanditSuggestResponse | null>(() => loadBanditCache());
     const [banditLoading, setBanditLoading] = useState(false);
     const [rawScore, setRawScore] = useState(0);
+    const [pendingStars, setPendingStars] = useState<string[]>([]);
 
     // AI生成の挨拶があれば使う、なければデフォルト
     const greeting = score.ui?.greeting || "Hello";
@@ -103,37 +105,89 @@ export function useDashboardData() {
     }, [score.total, score.LU, score.Q, score.O, historyBumpId, score.ui]);
 
     // T-Scoreの取得ロジック（キャッシュ優先）
-    useEffect(() => {
+    const loadStars = useCallback(async (forceRefresh: boolean = false) => {
         if (!userId) return;
 
-        // まずキャッシュをチェック
-        const cached = loadTScoreStateCache(userId);
-        if (cached) {
-            // キャッシュから合計ポイントを計算
-            const acquiredSet = new Set(cached.acquired);
-            const totalPoints = STAR_CATALOG.filter(item => acquiredSet.has(item.id)).reduce((sum, item) => sum + item.points, 0);
-            setRawScore(totalPoints);
-            return; // キャッシュがあればAPIを呼ばない
+        // まずキャッシュをチェック（強制更新でない場合のみ）
+        if (!forceRefresh) {
+            const cached = loadTScoreStateCache(userId);
+            if (cached) {
+                // キャッシュから合計ポイントを計算
+                const acquiredSet = new Set(cached.acquired);
+                const totalPoints = STAR_CATALOG.filter(item => acquiredSet.has(item.id)).reduce((sum, item) => sum + item.points, 0);
+                setRawScore(totalPoints);
+                setPendingStars(cached.pending);
+            }
         }
 
-        const loadStars = async () => {
-            try {
-                const res = await fetchTScoreState(userId);
-                if (res.ok) {
-                    const acquiredSet = new Set(res.state.acquired);
-                    const totalPoints = STAR_CATALOG.filter(item => acquiredSet.has(item.id)).reduce((sum, item) => sum + item.points, 0);
+        try {
+            // 強制更新の場合はキャッシュをスキップ、そうでない場合はキャッシュを有効活用
+            const res = await fetchTScoreState(userId, { skipCache: forceRefresh });
+            if (res.ok) {
+                const acquiredSet = new Set(res.state.acquired);
+                const totalPoints = STAR_CATALOG.filter(item => acquiredSet.has(item.id)).reduce((sum, item) => sum + item.points, 0);
 
-                    // 取得したデータをキャッシュに保存
-                    saveTScoreStateCache(userId, res.state.acquired, res.state.pending);
-                    setRawScore(totalPoints);
-                }
-            } catch (e) {
-                console.error("Failed to load T-Score stats", e);
+                // 取得したデータをキャッシュに保存
+                saveTScoreStateCache(userId, res.state.acquired, res.state.pending);
+                setRawScore(totalPoints);
+                setPendingStars(res.state.pending);
+            }
+        } catch (e) {
+            console.error("Failed to load T-Score stats", e);
+        }
+    }, [userId]);
+
+    useEffect(() => {
+        // 初回はキャッシュを優先して読み込み
+        void loadStars(false);
+        
+        // 状態更新イベントをリッスン（後方互換性のため残す）
+        const handleStateUpdate = (event: CustomEvent) => {
+            if (event.detail?.userId === userId) {
+                // イベント経由の更新は強制更新
+                void loadStars(true);
             }
         };
+        
+        window.addEventListener('tscore-state-updated', handleStateUpdate as EventListener);
+        
+        return () => {
+            window.removeEventListener('tscore-state-updated', handleStateUpdate as EventListener);
+        };
+    }, [userId, loadStars]);
 
-        void loadStars();
-    }, [userId]);
+    // Supabase RealtimeでDB変更を監視（変更があった場合のみ更新、強制更新）
+    useTScoreRealtime(() => loadStars(true), true, userId);
+
+    // ミッション更新後の再取得関数
+    const refreshBanditData = useCallback(() => {
+        // キャッシュをクリア
+        if (typeof window !== "undefined") {
+            window.localStorage.removeItem(BANDIT_CACHE_KEY);
+        }
+        
+        // 再取得
+        if (score.total) {
+            setBanditLoading(true);
+            const history = readHistoryOnce();
+            void fetchBanditSuggestion({
+                kpi: "quality",
+                score: { lu: score.LU, q: score.Q, o: score.O, total: score.total, ui: score.ui },
+                history,
+            })
+                .then((res) => {
+                    if (res?.ok) {
+                        setBanditData(res);
+                        saveBanditCache(res);
+                    }
+                })
+                .catch((e) => {
+                    console.error("Failed to refresh bandit mission", e);
+                    setBanditData(null);
+                })
+                .finally(() => setBanditLoading(false));
+        }
+    }, [score.total, score.LU, score.Q, score.O, score.ui]);
 
     return {
         score,
@@ -141,8 +195,10 @@ export function useDashboardData() {
         banditData,
         banditLoading,
         rawScore,
+        pendingStars,
         greeting: displayGreeting,
         headlineColor,
         historyBumpId,
+        refreshBanditData,
     };
 }

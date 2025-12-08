@@ -8,7 +8,7 @@ const router = express.Router();
 router.get("/team-stats", async (req, res) => {
   try {
     const [profilesRes, starStatesRes] = await Promise.all([
-      supabaseAdmin.from("profiles").select("id"),
+      supabaseAdmin.from("profiles").select("id, name"),
       supabaseAdmin.from("star_states").select("user_id, state"),
     ]);
 
@@ -25,19 +25,31 @@ router.get("/team-stats", async (req, res) => {
       scoreMap.set(row.user_id, totalPoints);
     });
 
-    const scores = profiles.map((profile: any) => scoreMap.get(profile.id) || 0);
+    // ユーザーID、名前、スコアを含むオブジェクト配列を作成
+    const members = profiles.map((profile: any) => ({
+      userId: profile.id,
+      name: profile.name || "Unknown",
+      score: scoreMap.get(profile.id) || 0,
+    }));
+
+    // スコアで降順ソート
+    members.sort((a, b) => b.score - a.score);
 
     // 統計データを作成
-    const teamSize = scores.length;
-    const totalScore = scores.reduce((a: number, b: number) => a + b, 0);
+    const teamSize = members.length;
+    const totalScore = members.reduce((sum, m) => sum + m.score, 0);
     const averageTScore = teamSize > 0 ? Math.round(totalScore / teamSize) : 0;
+
+    // 後方互換性のため、scores配列も残す
+    const scores = members.map((m) => m.score);
 
     res.json({
       ok: true,
       stats: {
         teamSize,
         averageTScore,
-        scores // 分布図用
+        scores, // 後方互換性のため
+        members, // 名前付きメンバーリスト（新規）
       }
     });
 

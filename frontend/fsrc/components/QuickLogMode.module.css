@@ -1,0 +1,17 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 12px;
+  color: var(--color-text-sub, #6b7280);
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.message {
+  font-size: 14px;
+  line-height: 1.6;
+}
+

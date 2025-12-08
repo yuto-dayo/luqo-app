@@ -1,0 +1,236 @@
+/* ハンバーガーボタン */
+.hamburgerButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-full, 50%);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--color-text-main);
+}
+
+.hamburgerButton:hover {
+  background: var(--color-surface-container-high, rgba(0, 0, 0, 0.05));
+}
+
+.hamburgerButton:active {
+  transform: scale(0.95);
+}
+
+/* 通知がある場合のハンバーガーボタンのスタイル */
+.hamburgerButton.hasNotification {
+  position: relative;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* 通知バッジ（赤いドット） */
+.notificationBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background: #b3261e; /* M3 Error Color */
+  border-radius: 50%;
+  border: 2px solid var(--color-surface, #ffffff);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  z-index: 1;
+}
+
+/* 脈打つアニメーション */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* オーバーレイ（メニューが開いている時の背景） */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh; /* 動的ビューポート高さに対応 */
+  background: rgba(0, 0, 0, 0.5);
+  /* ブラー効果を強化（ドロワー以外の画面をぼかす） */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px); /* Safari対応 */
+  z-index: 99;
+  animation: fadeIn 0.2s ease-out;
+  /* オーバーレイをタッチ/クリック可能にする */
+  pointer-events: auto;
+  cursor: pointer;
+  /* タッチイベントを確実に受け取る */
+  touch-action: manipulation;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* モバイルメニュー */
+.mobileMenu {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 280px;
+  max-width: 85vw;
+  height: 100vh;
+  height: 100dvh; /* 動的ビューポート高さに対応 */
+  background: var(--color-surface, #ffffff);
+  box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1));
+  z-index: 100;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* メニューがメインコンテンツの上に確実に表示されるようにする */
+  will-change: right;
+}
+
+.mobileMenuOpen {
+  right: 0;
+}
+
+/* モバイルメニューのコンテンツ */
+.mobileMenuContent {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-xl, 1.5rem) var(--spacing-md, 1rem);
+  gap: var(--spacing-xs, 0.25rem);
+}
+
+/* モバイルメニューのリンク */
+.mobileLink {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md, 1rem) var(--spacing-lg, 1.5rem);
+  border-radius: var(--radius-lg, 12px);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-sub, #6b7280);
+  text-decoration: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.mobileLink:hover {
+  color: var(--color-text-main, #111827);
+  background: var(--color-surface-container-high, rgba(0, 0, 0, 0.05));
+}
+
+.mobileLink.active {
+  color: var(--color-seed, #2563eb);
+  background: var(--color-seed-bg, rgba(37, 99, 235, 0.1));
+}
+
+/* 通知リストをモバイルメニューに配置 */
+.mobileNotification {
+  margin-top: var(--spacing-md, 1rem);
+  padding-top: var(--spacing-md, 1rem);
+  border-top: 1px solid var(--color-border, #e5e7eb);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+/* Retro Game Mode対応 - 8bit Game Style */
+body.retro-game .mobileMenu {
+  background: #1a1a2e !important;
+  border-left: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.5),
+    4px 4px 0px #000000 !important;
+}
+
+body.retro-game .mobileLink {
+  color: #00ffff !important;
+  border: 2px solid transparent !important;
+  font-family: 'DotGothic16', 'Press Start 2P', monospace !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.6) !important;
+}
+
+body.retro-game .mobileLink:hover {
+  color: #0a0a0f !important;
+  background: #00ffff !important;
+  border-color: #00ffff !important;
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.8),
+    2px 2px 0px #000000 !important;
+  transform: translate(2px, 2px) !important;
+}
+
+body.retro-game .mobileLink.active {
+  color: #0a0a0f !important;
+  background: #00ffff !important;
+  border-color: #00ffff !important;
+  box-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.8),
+    2px 2px 0px #000000 !important;
+}
+
+body.retro-game .hamburgerButton:hover {
+  background: #00ffff !important;
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.8),
+    2px 2px 0px #000000 !important;
+}
+
+body.retro-game .overlay {
+  background: rgba(10, 10, 15, 0.9) !important;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/* Retro Game Modeでの通知バッジ */
+body.retro-game .notificationBadge {
+  background: #ff00ff !important;
+  border-color: #00ffff !important;
+  box-shadow: 
+    0 0 8px rgba(255, 0, 255, 0.8),
+    2px 2px 0px #000000 !important;
+}
+
+/* Retro Game Modeでのハンバーガーボタンのアニメーション */
+body.retro-game .hamburgerButton.hasNotification {
+  animation: pulseRetro 1.5s steps(4, end) infinite;
+}
+
+@keyframes pulseRetro {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 
+      0 0 10px rgba(0, 255, 255, 0.8),
+      2px 2px 0px #000000;
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 
+      0 0 20px rgba(0, 255, 255, 1),
+      4px 4px 0px #000000;
+  }
+}

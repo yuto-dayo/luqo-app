@@ -33,6 +33,12 @@ export type SalesRegistrationResponse = {
   aiMessage: string;
 };
 
+export type ExpenseItem = {
+  name: string; // 品名
+  quantity?: number; // 数量（任意）
+  unitPrice?: number; // 単価（任意）
+};
+
 export type ExpenseManualInput = {
   amount: number;
   merchantName: string;
@@ -40,6 +46,7 @@ export type ExpenseManualInput = {
   category?: string;
   description?: string;
   siteName?: string;
+  items?: ExpenseItem[]; // 品名リスト（何を買ったか）
 };
 
 export type HistoryItem = {
@@ -58,3 +65,50 @@ export const ACCOUNTING_EVENTS = {
   EXPENSE_REGISTERED: "accounting_expense_registered",
   OPS_POINT_GRANTED: "ops_point_granted",
 } as const;
+
+// 請求書関連の型定義
+export type InvoiceItem = {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  date: string;
+  siteName?: string; // 現場名（分離表示用）
+};
+
+export type InvoiceData = {
+  invoiceNumber: string;
+  issueDate: string;
+  clientName: string;
+  issuer: {
+    companyName: string;
+    representative: string;
+    address: string;
+    phone: string;
+    email: string;
+    registrationNumber: string;
+  };
+  items: InvoiceItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  taxBreakdown: {
+    taxable10: {
+      amount: number;
+      tax: number;
+    };
+    exempt: {
+      amount: number;
+      tax: number;
+    };
+  };
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+};
+
+export type InvoiceResponse = {
+  ok: boolean;
+  invoice: InvoiceData;
+};

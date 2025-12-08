@@ -18,6 +18,7 @@ export type PromptId =
   | "tscore_v2.prompt"
   | "payroll_v2.prompt"
   | "star_audit.prompt"
+  | "okr_audit.prompt"
   | "news.prompt";
 
 /**

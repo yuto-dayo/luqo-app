@@ -277,7 +277,71 @@ router.post("/suggest", async (req, res: Response, next: NextFunction) => {
             ? history.slice(-5).map((h: any) => h.text).join("\n")
             : "（ログなし：まだ活動記録がありません）";
 
-        const systemInstruction = await loadPromptById("bandit_mission.prompt");
+        // ★学習機能: 過去のミッション変更履歴を取得
+        const { data: pastMissions } = await supabaseAdmin
+          .from("events")
+          .select("payload, created_at")
+          .eq("user_id", r.userId)
+          .eq("kind", "bandit_suggestion_log")
+          .order("created_at", { ascending: false })
+          .limit(10); // 直近10件のミッション履歴を取得
+
+        // 変更履歴を抽出（changeReasonがあるもの = ユーザーが編集したもの）
+        const feedbackHistory: Array<{
+          originalAction: string;
+          originalHint: string;
+          editedAction?: string;
+          editedHint?: string;
+          changeReason: string;
+          editedAt: string;
+        }> = [];
+
+        if (pastMissions && pastMissions.length > 0) {
+          for (const mission of pastMissions) {
+            const payload = mission.payload as any;
+            // 変更理由がある = ユーザーが編集したミッション
+            if (payload?.changeReason) {
+              feedbackHistory.push({
+                originalAction: payload.originalAction || payload.generatedAction || "不明",
+                originalHint: payload.originalHint || payload.generatedHint || "不明",
+                editedAction: payload.generatedAction,
+                editedHint: payload.generatedHint,
+                changeReason: payload.changeReason,
+                editedAt: payload.editedAt || mission.created_at,
+              });
+            }
+          }
+        }
+
+        // フィードバック履歴をテキスト化
+        let feedbackItems = "";
+        if (feedbackHistory.length > 0) {
+          // フィードバック項目を整形
+          feedbackItems = feedbackHistory.slice(0, 3).map((fb, idx) => `
+${idx + 1}. 【元のミッション】
+   ・アクション: ${fb.originalAction}
+   ・理由: ${fb.originalHint}
+   【ユーザーの変更理由】
+   ${fb.changeReason}
+   ${fb.editedAction ? `【変更後のミッション】\n   ・アクション: ${fb.editedAction}\n   ・理由: ${fb.editedHint || "なし"}` : ""}
+`).join("\n");
+        }
+
+        // メインプロンプトを読み込む
+        let systemInstruction = await loadPromptById("bandit_mission.prompt");
+        
+        // フィードバック項目を挿入
+        systemInstruction = systemInstruction.replace("{{FEEDBACK_ITEMS}}", feedbackItems);
+        
+        // フィードバック履歴セクションを有効化/無効化
+        if (feedbackHistory.length > 0) {
+          // フィードバック履歴がある場合は、セクション全体を有効化
+          systemInstruction = systemInstruction.replace("{{FEEDBACK_HISTORY}}", "");
+        } else {
+          // フィードバック履歴がない場合は、セクション全体を削除
+          systemInstruction = systemInstruction.replace(/{{FEEDBACK_HISTORY}}[\s\S]*?⚠️ 上記のようなミッションは避け、ユーザーの実際の活動ログと組織目標をより深く分析して提案してください。\n\n/, "");
+        }
+        
         const userPrompt = `
 【組織の全体目標 (Team OKR)】
 ・目標 (Objective): ${season.objective}
@@ -366,6 +430,87 @@ ${myRecentLogs}
         },
       },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ミッション更新API
+router.post("/update-mission", async (req, res: Response, next: NextFunction) => {
+  const r = req as AuthedRequest;
+  try {
+    if (!r.userId) return res.status(401).json({ ok: false, error: "Unauthorized" });
+
+    const { action, hint, changeReason } = req.body;
+
+    if (!action || !hint || !changeReason) {
+      return res.status(400).json({ ok: false, error: "action, hint, and changeReason are required" });
+    }
+
+    // 1. 現在のシーズンを取得
+    const season = await getOrCreateCurrentSeason(r.userId, r.supabase);
+
+    // 2. 既存のbandit_suggestion_logイベントを取得
+    const { data: existingLogs, error: fetchError } = await supabaseAdmin
+      .from("events")
+      .select("id, payload, created_at")
+      .eq("user_id", r.userId)
+      .eq("kind", "bandit_suggestion_log")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("[Bandit] Failed to fetch existing mission:", fetchError);
+      return res.status(500).json({ ok: false, error: "Failed to fetch existing mission" });
+    }
+
+    // 3. 既存のイベントがある場合は更新、ない場合は新規作成
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    
+    // 元のミッション情報を保存（学習用）
+    const originalAction = existingLogs?.payload?.generatedAction || existingLogs?.payload?.originalAction || action;
+    const originalHint = existingLogs?.payload?.generatedHint || existingLogs?.payload?.originalHint || hint;
+    
+    const updatedPayload = {
+      month: currentMonth,
+      seasonId: season.id,
+      targetDimension: season.targetDimension,
+      generatedAction: action, // 変更後のアクション
+      generatedHint: hint, // 変更後のヒント
+      // ★学習用: 元のミッション情報を保存
+      originalAction: originalAction, // AIが生成した元のアクション
+      originalHint: originalHint, // AIが生成した元のヒント
+      changeReason: changeReason, // 変更理由を記録
+      editedAt: new Date().toISOString(), // 編集時刻を記録
+    };
+
+    if (existingLogs && existingLogs.id) {
+      // 既存イベントを更新
+      const { error: updateError } = await supabaseAdmin
+        .from("events")
+        .update({
+          text: `[2-Week Mission] ${season.targetDimension} -> ${action} (編集済み)`,
+          payload: updatedPayload,
+        })
+        .eq("id", existingLogs.id);
+
+      if (updateError) {
+        console.error("[Bandit] Failed to update mission:", updateError);
+        return res.status(500).json({ ok: false, error: "Failed to update mission" });
+      }
+    } else {
+      // 新規作成（通常は既存があるはずだが、念のため）
+      await dbClient.appendEvent({
+        userId: r.userId,
+        kind: "bandit_suggestion_log",
+        text: `[2-Week Mission] ${season.targetDimension} -> ${action}`,
+        createdAt: new Date().toISOString(),
+        payload: updatedPayload,
+      }, r.supabase);
+    }
+
+    return res.status(200).json({ ok: true });
   } catch (err) {
     next(err);
   }

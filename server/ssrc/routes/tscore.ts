@@ -68,6 +68,7 @@ router.get(
 
                 return {
                     userId: userItem.userId,
+                    userName: userItem.userName, // ユーザーネームを追加
                     pending: unvotedStars,
                     votes: userItem.votes // 進捗表示用に渡すのはOK
                 };
@@ -96,12 +97,12 @@ router.get(
 );
 
 // POST /action
-// Body: { action: 'apply'|'approve'|'reject'|'pass', starId: string, targetUserId: string }
+// Body: { action: 'apply'|'approve'|'reject'|'pass', starId: string, targetUserId: string, evidence?: string, feedback?: string }
 // ★修正: 楽観的ロックによる排他制御を実装
 router.post(
     "/action",
     async (req: Request, res: Response, next: NextFunction) => {
-        const { action, starId, targetUserId, feedback } = req.body;
+        const { action, starId, targetUserId, feedback, evidence } = req.body;
         const r = req as AuthedRequest;
 
         if (!action || !starId || !targetUserId) {
@@ -111,6 +112,9 @@ router.post(
 
         try {
             // バリデーション
+            if (action === "apply" && (!evidence || typeof evidence !== "string" || !evidence.trim())) {
+                return res.status(400).json({ ok: false, error: "申請には根拠が必要です" });
+            }
             if (action === "reject" && (!feedback || typeof feedback !== "string" || !feedback.trim())) {
                 throw new Error("Feedback is required for rejection");
             }
@@ -119,15 +123,23 @@ router.post(
             }
 
             // RPC呼び出し (DB側で排他制御とロジック実行)
+            // applyアクションの場合はevidenceをfeedbackとして渡す（将来的に分離可能）
             const { data, error } = await r.supabase.rpc("vote_star", {
                 target_user_id: targetUserId,
                 star_id: starId,
                 action_type: action,
-                feedback: feedback || null
+                feedback: action === "apply" ? (evidence || null) : (feedback || null)
             });
 
             if (error) {
                 console.error("RPC vote_star error:", error);
+                // 特定のエラーメッセージを適切に処理
+                if (error.message?.includes("Self voting is not allowed")) {
+                    return res.status(400).json({ ok: false, error: "自分自身への投票はできません" });
+                }
+                if (error.message?.includes("Not authenticated")) {
+                    return res.status(401).json({ ok: false, error: "認証が必要です" });
+                }
                 throw new Error(`Database error: ${error.message}`);
             }
 
@@ -136,6 +148,11 @@ router.post(
         } catch (err: any) {
             if (err?.message === "Feedback is required for rejection" || err?.message === "Invalid action") {
                 res.status(400).json({ ok: false, error: err.message });
+                return;
+            }
+            // Database error メッセージもチェック
+            if (err?.message?.includes("Self voting is not allowed")) {
+                res.status(400).json({ ok: false, error: "自分自身への投票はできません" });
                 return;
             }
             next(err);

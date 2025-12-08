@@ -165,7 +165,8 @@ export const useLuqoStore = create<State>((set, get) => ({
       set({
         score: cached.score,
         monthlyScore: cached.score,
-        monthlyEvaluation: { reasoning: cached.score.reasoning },
+        // 型エラー対策: reasoningがundefinedの場合は空文字にフォールバックする
+        monthlyEvaluation: { reasoning: cached.score.reasoning ?? "" },
         isFixed: cached.isFixed,
       });
       return; // キャッシュがあればAPIを呼ばない

@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { STAR_CATALOG, StarItem } from "../data/starCatalog";
 import { useUserId } from "../hooks/useLuqoStore";
 import { fetchTScoreState, postTScoreAction, fetchUserProfiles } from "../lib/api";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { loadTScoreStateCache, saveTScoreStateCache } from "../lib/cacheUtils";
+import { Icon } from "../components/ui/Icon";
+import { Confetti } from "../components/Confetti";
+import styles from "./TScorePage.module.css";
 
 // 型定義
 type StarStatus = "unlocked" | "pending" | "locked";
@@ -25,33 +28,41 @@ export default function TScorePage() {
     const [loading, setLoading] = useState(true);
     const [targetUserName, setTargetUserName] = useState<string>(targetUserId); // ユーザー名（初期値はuserId）
 
-    // --- Fetch State（キャッシュ優先） ---
+    // --- Fetch State（キャッシュは初期表示用、必ず最新データを取得） ---
     useEffect(() => {
         let active = true;
         setLoading(true);
 
-        // まずキャッシュをチェック
+        // まずキャッシュをチェック（初期表示用）
         const cached = loadTScoreStateCache(targetUserId);
         if (cached) {
-            setAcquiredIds(new Set(cached.acquired));
+            const cachedAcquired = new Set(cached.acquired);
+            setAcquiredIds(cachedAcquired);
             setPendingIds(new Set(cached.pending));
+            previousAcquiredIdsRef.current = cachedAcquired;
+            // キャッシュがあっても、必ず最新データを取得する
             setLoading(false);
-        } else {
-            // キャッシュがない場合のみAPIを呼び出す
-            fetchTScoreState(targetUserId)
-                .then((res) => {
-                    if (active && res.ok) {
-                        setAcquiredIds(new Set(res.state.acquired));
-                        setPendingIds(new Set(res.state.pending));
-                        // 取得したデータをキャッシュに保存
-                        saveTScoreStateCache(targetUserId, res.state.acquired, res.state.pending);
-                    }
-                })
-                .catch((err) => console.error("Failed to fetch T-Score state", err))
-                .finally(() => {
-                    if (active) setLoading(false);
-                });
         }
+
+        // 必ず最新の状態を取得（キャッシュをスキップ）
+        fetchTScoreState(targetUserId, { skipCache: true })
+            .then((res) => {
+                if (active && res.ok) {
+                    const fetchedAcquired = new Set(res.state.acquired);
+                    const fetchedPending = new Set(res.state.pending);
+                    
+                    setAcquiredIds(fetchedAcquired);
+                    setPendingIds(fetchedPending);
+                    previousAcquiredIdsRef.current = fetchedAcquired;
+                    
+                    // 取得したデータをキャッシュに保存
+                    saveTScoreStateCache(targetUserId, res.state.acquired, res.state.pending);
+                }
+            })
+            .catch((err) => console.error("Failed to fetch T-Score state", err))
+            .finally(() => {
+                if (active) setLoading(false);
+            });
 
         // ユーザー名を取得
         fetchUserProfiles([targetUserId])
@@ -71,14 +82,18 @@ export default function TScorePage() {
     const [applyingStar, setApplyingStar] = useState<StarItem | null>(null);
     const [reviewingStar, setReviewingStar] = useState<StarItem | null>(null);
     const [evidenceText, setEvidenceText] = useState("");
+    
+    // 紙吹雪用state
+    const [showConfetti, setShowConfetti] = useState(false);
+    const previousAcquiredIdsRef = useRef<Set<string>>(new Set());
 
     // --- Actions ---
 
     // 申請 (Apply)
     const handleApply = async () => {
-        if (!applyingStar) return;
+        if (!applyingStar || !evidenceText.trim()) return;
         try {
-            const res = await postTScoreAction("apply", applyingStar.id, targetUserId);
+            const res = await postTScoreAction("apply", applyingStar.id, targetUserId, evidenceText.trim());
             if (res.ok) {
                 setAcquiredIds(new Set(res.state.acquired));
                 setPendingIds(new Set(res.state.pending));
@@ -87,11 +102,40 @@ export default function TScorePage() {
                 showSnackbar(`「${applyingStar.label}」を申請しました！`, "success");
                 setApplyingStar(null);
                 setEvidenceText("");
+            } else {
+                // APIから返されたエラーメッセージを表示
+                const errorMessage = (res as any).error || "申請に失敗しました";
+                showSnackbar(errorMessage, "error");
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            showSnackbar("エラーが発生しました", "error");
+            // エラーの詳細を取得して表示
+            const errorMessage = e?.message || e?.error || "エラーが発生しました";
+            showSnackbar(errorMessage, "error");
         }
+    };
+
+    // 状態を再取得する関数
+    const refreshState = async () => {
+        try {
+            const res = await fetchTScoreState(targetUserId);
+            if (res.ok) {
+                const fetchedAcquired = new Set(res.state.acquired);
+                const fetchedPending = new Set(res.state.pending);
+                
+                setAcquiredIds(fetchedAcquired);
+                setPendingIds(fetchedPending);
+                previousAcquiredIdsRef.current = fetchedAcquired;
+                
+                // キャッシュを更新
+                saveTScoreStateCache(targetUserId, res.state.acquired, res.state.pending);
+                
+                return { acquired: fetchedAcquired, pending: fetchedPending };
+            }
+        } catch (err) {
+            console.error("Failed to refresh T-Score state", err);
+        }
+        return null;
     };
 
     // 承認 (Approve)
@@ -100,16 +144,56 @@ export default function TScorePage() {
         try {
             const res = await postTScoreAction("approve", reviewingStar.id, targetUserId);
             if (res.ok) {
-                setAcquiredIds(new Set(res.state.acquired));
-                setPendingIds(new Set(res.state.pending));
-                // キャッシュを更新
-                saveTScoreStateCache(targetUserId, res.state.acquired, res.state.pending);
-                showSnackbar("承認しました！", "success");
+                const isFinalized = (res as any).isFinalized === true;
+                
+                // 承認が確定した場合は、最新の状態を再取得
+                if (isFinalized) {
+                    // 少し待ってから再取得（DB更新の反映を待つ）
+                    setTimeout(async () => {
+                        const refreshed = await refreshState();
+                        if (refreshed) {
+                            // 新しく獲得したスターがあるかチェック（紙吹雪表示用）
+                            const newlyAcquired = Array.from(refreshed.acquired).filter(
+                                id => !previousAcquiredIdsRef.current.has(id)
+                            );
+                            
+                            // 状態変更を通知（他のコンポーネントに再取得を促す）
+                            window.dispatchEvent(new CustomEvent('tscore-state-updated', {
+                                detail: { userId: targetUserId }
+                            }));
+                            
+                            if (newlyAcquired.length > 0) {
+                                setShowConfetti(true);
+                                setTimeout(() => setShowConfetti(false), 3000);
+                                showSnackbar("承認しました！スターを獲得しました！", "success");
+                            } else {
+                                showSnackbar("承認しました！", "success");
+                            }
+                        }
+                    }, 500);
+                } else {
+                    // 未確定の場合はレスポンスの状態を使用
+                    const newAcquiredIds = new Set(res.state.acquired);
+                    const newPendingIds = new Set(res.state.pending);
+                    
+                    setAcquiredIds(newAcquiredIds);
+                    setPendingIds(newPendingIds);
+                    previousAcquiredIdsRef.current = newAcquiredIds;
+                    
+                    // キャッシュを更新
+                    saveTScoreStateCache(targetUserId, res.state.acquired, res.state.pending);
+                    
+                    showSnackbar("承認しました！", "success");
+                }
                 setReviewingStar(null);
+            } else {
+                const errorMessage = (res as any).error || "承認に失敗しました";
+                showSnackbar(errorMessage, "error");
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            showSnackbar("エラーが発生しました", "error");
+            const errorMessage = e?.message || e?.error || "エラーが発生しました";
+            showSnackbar(errorMessage, "error");
         }
     };
 
@@ -119,16 +203,30 @@ export default function TScorePage() {
         try {
             const res = await postTScoreAction("reject", reviewingStar.id, targetUserId);
             if (res.ok) {
-                setAcquiredIds(new Set(res.state.acquired));
-                setPendingIds(new Set(res.state.pending));
-                // キャッシュを更新
-                saveTScoreStateCache(targetUserId, res.state.acquired, res.state.pending);
+                const isFinalized = (res as any).isFinalized === true;
+                
+                // 否決が確定した場合は、最新の状態を再取得
+                if (isFinalized) {
+                    setTimeout(async () => {
+                        await refreshState();
+                    }, 500);
+                } else {
+                    // 未確定の場合はレスポンスの状態を使用
+                    setAcquiredIds(new Set(res.state.acquired));
+                    setPendingIds(new Set(res.state.pending));
+                    // キャッシュを更新
+                    saveTScoreStateCache(targetUserId, res.state.acquired, res.state.pending);
+                }
                 showSnackbar("否決しました", "info");
                 setReviewingStar(null);
+            } else {
+                const errorMessage = (res as any).error || "否決に失敗しました";
+                showSnackbar(errorMessage, "error");
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            showSnackbar("エラーが発生しました", "error");
+            const errorMessage = e?.message || e?.error || "エラーが発生しました";
+            showSnackbar(errorMessage, "error");
         }
     };
 
@@ -147,56 +245,33 @@ export default function TScorePage() {
 
     return (
         <div className="page">
+            {/* 紙吹雪演出 */}
+            <Confetti active={showConfetti} />
+            
             {/* ヘッダー */}
-            <header
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "16px 20px",
-                    background: "rgba(255,255,255,0.8)",
-                    position: "sticky",
-                    top: 0,
-                    zIndex: 10,
-                    backdropFilter: "blur(10px)",
-                    borderBottom: "1px solid #e5e7eb",
-                }}
-            >
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <button
-                        onClick={() => navigate(-1)}
-                        style={{ border: "none", background: "transparent", fontSize: 20, cursor: "pointer", padding: 4 }}
-                    >
+            <header className={styles.pageHeader}>
+                <div className={styles.pageHeaderLeft}>
+                    <button onClick={() => navigate(-1)} className={styles.backButton}>
                         ←
                     </button>
                     <div>
-                        <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+                        <h1 className={styles.pageTitle}>
                             {isOwnPage ? "My T-Score" : `${targetUserName}'s T-Score`}
                         </h1>
-                        <span style={{ fontSize: 11, color: "#64748b" }}>技術レベル詳細評価</span>
+                        <span className={styles.pageSubtitle}>技術レベル詳細評価</span>
                     </div>
                 </div>
             </header>
 
-            <div className="page__content page__content--narrow" style={{ padding: 20 }}>
-
+            <div className={styles.content}>
                 {/* スコア表示 */}
-                <section
-                    className="card"
-                    style={{
-                        textAlign: "center",
-                        marginBottom: 24,
-                        background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
-                        color: "white",
-                        padding: "32px 16px"
-                    }}
-                >
-                    <p style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>現在の技術評価点</p>
-                    <div style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>
+                <section className={styles.scoreCard}>
+                    <p className={styles.scoreLabel}>現在の技術評価点</p>
+                    <div className={styles.scoreValue}>
                         {currentPoints}
-                        <span style={{ fontSize: 16, fontWeight: 400, opacity: 0.6, marginLeft: 4 }}>/ {maxPoints}</span>
+                        <span className={styles.scoreMax}>/ {maxPoints}</span>
                     </div>
-                    <div style={{ marginTop: 16, fontSize: 12, background: "rgba(255,255,255,0.1)", display: "inline-block", padding: "4px 12px", borderRadius: 99 }}>
+                    <div className={styles.scoreBadge}>
                         取得スター数: {acquiredIds.size} / {STAR_CATALOG.length} 個
                     </div>
                 </section>
@@ -235,24 +310,35 @@ export default function TScorePage() {
 
             {/* 申請モーダル */}
             {applyingStar && (
-                <div style={modalOverlayStyle}>
-                    <div style={modalContentStyle}>
-                        <h3 style={{ marginTop: 0 }}>⭐️ {applyingStar.label} を申請</h3>
-                        <p style={{ fontSize: 13, color: "#4b5563" }}>
+                <div className={styles.modalOverlay} onClick={(e) => e.target === e.currentTarget && setApplyingStar(null)}>
+                    <div className={styles.modalContent}>
+                        <div className={styles.modalHeader}>
+                            <Icon name="star" size={20} color="var(--color-o-base)" />
+                            <h3 className={styles.modalTitle}>{applyingStar.label} を申請</h3>
+                        </div>
+                        <p className={styles.modalDescription}>
                             申請には「根拠」が必要です。該当するログの日付や成果を記入してください。
                         </p>
                         <textarea
+                            className={styles.textarea}
                             placeholder="例: 10/5の現場で、○○の問題を独力で解決しました"
                             value={evidenceText}
                             onChange={e => setEvidenceText(e.target.value)}
-                            style={{ width: "100%", height: 80, padding: 8, borderRadius: 8, border: "1px solid #ccc", marginBottom: 16 }}
                         />
-                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                            <button onClick={() => setApplyingStar(null)} style={btnSecondary}>キャンセル</button>
+                        <div className={styles.buttonGroup}>
+                            <button 
+                                onClick={() => {
+                                    setApplyingStar(null);
+                                    setEvidenceText("");
+                                }} 
+                                className={styles.buttonSecondary}
+                            >
+                                キャンセル
+                            </button>
                             <button
                                 onClick={handleApply}
                                 disabled={!evidenceText.trim()}
-                                style={evidenceText.trim() ? btnPrimary : btnDisabled}
+                                className={evidenceText.trim() ? styles.buttonPrimary : styles.buttonDisabled}
                             >
                                 申請する
                             </button>
@@ -263,21 +349,29 @@ export default function TScorePage() {
 
             {/* レビューモーダル */}
             {reviewingStar && (
-                <div style={modalOverlayStyle}>
-                    <div style={modalContentStyle}>
-                        <h3 style={{ marginTop: 0 }}>📝 申請のレビュー</h3>
-                        <p style={{ fontSize: 14 }}>
+                <div className={styles.modalOverlay} onClick={(e) => e.target === e.currentTarget && setReviewingStar(null)}>
+                    <div className={styles.modalContent}>
+                        <div className={styles.modalHeader}>
+                            <Icon name="pen" size={20} color="var(--color-lu-base)" />
+                            <h3 className={styles.modalTitle}>申請のレビュー</h3>
+                        </div>
+                        <p className={styles.modalDescription}>
                             <strong>{targetUserName}</strong> さんが「{reviewingStar.label}」を申請中。
                         </p>
-                        <div style={{ background: "#f3f4f6", padding: 12, borderRadius: 8, fontSize: 13, color: "#374151", marginBottom: 16 }}>
-                            <strong>根拠:</strong><br />
+                        <div className={styles.evidenceBox}>
+                            <strong className={styles.evidenceBoxLabel}>根拠:</strong><br />
                             「現場のログを確認してください。完了写真もアップ済みです。」<br />
-                            <span style={{ fontSize: 10, color: "#9ca3af" }}>※デモテキスト</span>
+                            <span className={styles.evidenceBoxNote}>※デモテキスト</span>
                         </div>
-                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                            <button onClick={() => setReviewingStar(null)} style={btnSecondary}>あとで</button>
-                            <button onClick={handleReject} style={{ ...btnSecondary, color: "#b91c1c", borderColor: "#fecaca", background: "#fef2f2" }}>否決</button>
-                            <button onClick={handleApprove} style={btnPrimary}>承認する</button>
+                        <div className={styles.buttonGroup}>
+                            <button onClick={() => setReviewingStar(null)} className={styles.buttonSecondary}>あとで</button>
+                            <button 
+                                onClick={handleReject} 
+                                className={`${styles.buttonSecondary} ${styles.buttonReject}`}
+                            >
+                                否決
+                            </button>
+                            <button onClick={handleApprove} className={styles.buttonPrimary}>承認する</button>
                         </div>
                     </div>
                 </div>
@@ -286,7 +380,7 @@ export default function TScorePage() {
     );
 }
 
-// サブコンポーネントとスタイルは前回と同じ（省略せず記載する場合は前回コードを参照）
+// カテゴリセクションコンポーネント
 const CategorySection = ({
     title,
     items,
@@ -303,11 +397,11 @@ const CategorySection = ({
     onItemClick: (item: StarItem, status: StarStatus) => void;
 }) => {
     return (
-        <section style={{ marginBottom: 32 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#334155", marginBottom: 12, paddingLeft: 4 }}>
+        <section className={styles.categorySection}>
+            <h3 className={styles.categoryTitle}>
                 {title}
             </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className={styles.categoryList}>
                 {items.map((item) => {
                     const isAcquired = acquiredIds.has(item.id);
                     const isPending = pendingIds.has(item.id);
@@ -322,44 +416,30 @@ const CategorySection = ({
                         <div
                             key={item.id}
                             onClick={() => isActionable && onItemClick(item, status)}
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                padding: "12px 16px",
-                                borderRadius: 12,
-                                background: isAcquired
-                                    ? "#ffffff"
-                                    : isPending
-                                        ? "#fffbeb"
-                                        : "rgba(255,255,255,0.5)",
-                                border: `1px solid ${isAcquired
-                                    ? "#bfdbfe"
-                                    : isPending
-                                        ? "#fcd34d"
-                                        : "#e2e8f0"
-                                    }`,
-                                opacity: status === "locked" ? 0.6 : 1,
-                                cursor: isActionable ? "pointer" : "default",
-                                position: "relative"
-                            }}
+                            className={`${styles.starItem} ${
+                                isAcquired 
+                                    ? styles.starItemAcquired 
+                                    : isPending 
+                                        ? styles.starItemPending 
+                                        : styles.starItemLocked
+                            }`}
                         >
-                            <div style={{ display: "flex", flexDirection: "column" }}>
-                                <span style={{ fontSize: 14, fontWeight: isAcquired ? 600 : 400, color: "#1e293b" }}>
+                            <div className={styles.starItemContent}>
+                                <span className={`${styles.starItemLabel} ${isAcquired ? styles.starItemLabelAcquired : ""}`}>
                                     {item.label}
                                 </span>
                                 {isPending && (
-                                    <span style={{ fontSize: 10, fontWeight: 700, color: "#d97706", marginTop: 2 }}>
+                                    <span className={styles.starItemPendingBadge}>
                                         🕑 申請中 (レビュー待ち)
                                     </span>
                                 )}
                             </div>
 
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b", background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>
+                            <div className={styles.starItemRight}>
+                                <span className={styles.starItemPoints}>
                                     {item.points}pt
                                 </span>
-                                <span style={{ fontSize: 18 }}>
+                                <span className={styles.starItemIcon}>
                                     {isAcquired ? "⭐️" : isPending ? "✋" : "⚪️"}
                                 </span>
                             </div>
@@ -371,24 +451,3 @@ const CategorySection = ({
     );
 };
 
-const modalOverlayStyle: React.CSSProperties = {
-    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-    background: "rgba(0,0,0,0.6)", zIndex: 50,
-    display: "flex", alignItems: "center", justifyContent: "center", padding: 16
-};
-const modalContentStyle: React.CSSProperties = {
-    background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400,
-    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)"
-};
-const btnBase: React.CSSProperties = {
-    padding: "8px 16px", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", border: "1px solid transparent"
-};
-const btnPrimary: React.CSSProperties = {
-    ...btnBase, background: "#2563eb", color: "white"
-};
-const btnSecondary: React.CSSProperties = {
-    ...btnBase, background: "white", color: "#374151", borderColor: "#d1d5db"
-};
-const btnDisabled: React.CSSProperties = {
-    ...btnBase, background: "#e5e7eb", color: "#9ca3af", cursor: "not-allowed"
-};

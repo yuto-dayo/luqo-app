@@ -3,6 +3,7 @@ import { useForceFetchScore, useIsFixed } from "../hooks/useLuqoStore";
 import { useConfirm } from "../contexts/ConfirmDialogContext";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { Icon } from "./ui/Icon";
+import { useRetroGameMode } from "../hooks/useRetroGameMode";
 import type { Score } from "../hooks/useLuqoStore";
 
 type LuqoSummaryProps = {
@@ -98,6 +99,7 @@ export const LuqoSummary: React.FC<LuqoSummaryProps> = ({ score, activeDimension
   const forceFetchScore = useForceFetchScore();
   const { confirm } = useConfirm();
   const { showSnackbar } = useSnackbar();
+  const isRetroGameMode = useRetroGameMode();
 
   // 手動更新（強制再計算）
   const handleManualUpdate = async () => {
@@ -124,7 +126,7 @@ export const LuqoSummary: React.FC<LuqoSummaryProps> = ({ score, activeDimension
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        background: "white",
+        background: isRetroGameMode ? "#1a1a2e" : "white",
         padding: "24px",
       }}
     >

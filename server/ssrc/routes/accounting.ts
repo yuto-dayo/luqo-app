@@ -3,6 +3,7 @@ import { supabaseAdmin } from "../services/supabaseClient";
 import type { AuthedRequest } from "../types/authed-request";
 import { loadPromptById } from "../lib/promptIds";
 import { openai } from "../lib/openaiClient";
+import { gemini } from "../lib/geminiClient";
 import {
   ACCOUNTING_EVENTS,
   type DashboardResponse,
@@ -44,49 +45,162 @@ accountingRouter.post("/analyze", async (req, res) => {
 
     const systemPrompt = await loadPromptById(promptId);
     
-    // OpenAI Vision APIを使用（画像解析）
-    const completion = await openai.chat.completions.create({
-      model: "gpt-5.1",
-      messages: [
-        { 
-          role: "system", 
-          content: systemPrompt 
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "image_url" as const,
-              image_url: {
-                url: `data:${mimeType};base64,${base64Data}`
+    // コストを考慮してGPT-4oを優先使用
+    // 優先順位: OpenAI GPT-4o → Gemini 3 Pro → Gemini 2.5 Flash
+    let analysis: any;
+    let usedProvider = "gpt-4o";
+    
+    // OpenAI GPT-4oを優先（コスト効率と精度のバランス）
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { 
+            role: "system", 
+            content: systemPrompt 
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url" as const,
+                image_url: {
+                  url: `data:${mimeType};base64,${base64Data}`
+                }
+              },
+              {
+                type: "text" as const,
+                text: "この画像を解析して、JSON形式で結果を返してください。"
               }
+            ]
+          }
+        ] as any,
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      });
+
+      const responseText = completion.choices[0]?.message?.content;
+      if (!responseText) {
+        throw new Error("Empty response from OpenAI");
+      }
+      analysis = JSON.parse(responseText);
+    } catch (openaiError: any) {
+      console.warn("GPT-4o解析失敗、Geminiにフォールバック:", openaiError?.message);
+      usedProvider = "gemini";
+      
+      // Geminiモデルの優先順位（最新・高精度 → コスト効率）
+      const geminiModels = [
+        { name: "gemini-3-pro", label: "Gemini 3 Pro" }, // 世界最高のマルチモーダル理解
+        { name: "gemini-2.5-flash", label: "Gemini 2.5 Flash" }, // 低レイテンシー・コスト効率
+      ];
+      
+      let geminiSuccess = false;
+      for (const geminiModelInfo of geminiModels) {
+        try {
+          const geminiModel = gemini.getGenerativeModel({
+            model: geminiModelInfo.name,
+            systemInstruction: systemPrompt,
+            generationConfig: {
+              responseMimeType: "application/json",
+              temperature: 0.7,
             },
-            {
-              type: "text" as const,
-              text: "この画像を解析して、JSON形式で結果を返してください。"
-            }
-          ]
+          });
+          
+          // 画像データをGemini形式に変換
+          const imagePart = {
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType,
+            },
+          };
+          
+          const prompt = "この画像を解析して、JSON形式で結果を返してください。";
+          const result = await geminiModel.generateContent([prompt, imagePart]);
+          const responseText = result.response.text();
+          
+          if (!responseText) {
+            throw new Error("Empty response from Gemini");
+          }
+          
+          analysis = JSON.parse(responseText);
+          usedProvider = geminiModelInfo.name;
+          geminiSuccess = true;
+          break; // 成功したらループを抜ける
+        } catch (geminiError: any) {
+          console.warn(`${geminiModelInfo.label}解析失敗、次のモデルを試行:`, geminiError?.message);
+          // 次のモデルを試行
+          continue;
         }
-      ] as any,
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-    });
-
-    const responseText = completion.choices[0]?.message?.content;
-    if (!responseText) {
-      throw new Error("Empty response from OpenAI");
+      }
+      
+      if (!geminiSuccess) {
+        // すべてのモデルが失敗した場合
+        throw new Error("すべてのAIモデルで解析に失敗しました");
+      }
     }
-    const analysis = JSON.parse(responseText);
+    
+    // 使用したプロバイダーをログに記録（デバッグ用）
+    console.log(`[Receipt Analysis] Used provider: ${usedProvider}, mode: ${mode}`);
 
-    return res.json({ ok: true, analysis, mode });
-  } catch (err) {
+    return res.json({ ok: true, analysis, mode, provider: usedProvider });
+  } catch (err: any) {
     console.error("Analysis error:", err);
-    return res.status(500).json({ error: "解析に失敗しました。画像またはPDFを確認してください。" });
+    
+    // より詳細なエラーメッセージを返す
+    const errorMessage = err?.message || err?.toString() || "Unknown error";
+    const errorCode = err?.code || err?.status || "UNKNOWN_ERROR";
+    const isModelError = errorMessage.toLowerCase().includes("model") || 
+                        errorMessage.toLowerCase().includes("invalid") ||
+                        errorMessage.toLowerCase().includes("not found");
+    const isApiKeyError = errorMessage.toLowerCase().includes("api key") || 
+                         errorMessage.toLowerCase().includes("authentication") ||
+                         errorMessage.toLowerCase().includes("unauthorized");
+    const isRateLimitError = errorMessage.toLowerCase().includes("rate limit") ||
+                            errorCode === "rate_limit_exceeded";
+    
+    // エラータイプに応じたメッセージを返す
+    if (isModelError) {
+      return res.status(500).json({ 
+        ok: false,
+        error: "AIモデルの設定エラーが発生しました。利用可能なモデルを確認してください。",
+        code: "MODEL_ERROR",
+        details: process.env.NODE_ENV === "development" ? errorMessage : undefined
+      });
+    }
+    if (isApiKeyError) {
+      return res.status(500).json({ 
+        ok: false,
+        error: "API認証エラーが発生しました。管理者に連絡してください。",
+        code: "AUTH_ERROR",
+        details: process.env.NODE_ENV === "development" ? errorMessage : undefined
+      });
+    }
+    if (isRateLimitError) {
+      return res.status(429).json({ 
+        ok: false,
+        error: "APIの利用制限に達しました。しばらく待ってから再度お試しください。",
+        code: "RATE_LIMIT",
+        details: process.env.NODE_ENV === "development" ? errorMessage : undefined
+      });
+    }
+    
+    return res.status(500).json({ 
+      ok: false,
+      error: "解析に失敗しました。画像またはPDFを確認してください。",
+      code: "PARSE_ERROR",
+      details: process.env.NODE_ENV === "development" ? errorMessage : undefined
+    });
   }
 });
 
 /**
- * 取引の取り消し (Void / Reversal)
+ * 取引の取り消し (逆仕訳 / Reversal Entry)
+ * 
+ * 【会計原則】
+ * - 削除は絶対に行わない（監査証跡を保持）
+ * - マイナス金額で新しいイベントを挿入（逆仕訳）
+ * - 元のイベントはそのまま残し、逆仕訳で相殺
+ * - 取り消し理由を記録（監査証跡）
  */
 accountingRouter.post("/void", async (req, res) => {
   const r = req as AuthedRequest;
@@ -95,6 +209,11 @@ accountingRouter.post("/void", async (req, res) => {
 
   if (!userId || !eventId) {
     return res.status(400).json({ error: "Invalid request" });
+  }
+
+  // 取り消し理由は必須（監査証跡のため）
+  if (!reason || reason.trim().length === 0) {
+    return res.status(400).json({ error: "取り消し理由が必要です" });
   }
 
   try {
@@ -109,6 +228,7 @@ accountingRouter.post("/void", async (req, res) => {
       return res.status(404).json({ error: "対象のデータが見つかりません" });
     }
 
+    // 既に取り消されていないか確認（重複防止）
     const { data: alreadyVoided } = await r.supabase
       .from("events")
       .select("id")
@@ -121,23 +241,31 @@ accountingRouter.post("/void", async (req, res) => {
       return res.status(409).json({ error: "Already voided", message: "この取引は既に取り消されています。" });
     }
 
+    // 元のイベントが既に取り消しデータでないか確認
     const originalPayload = originalEvent.payload as any;
+    if (originalPayload?.isReversal === true) {
+      return res.status(400).json({ error: "取り消しデータは取り消せません" });
+    }
+
     const now = new Date().toISOString();
     const reversalEvents = [];
 
+    // 逆仕訳イベントの作成（マイナス金額で相殺）
     if (originalEvent.kind === ACCOUNTING_EVENTS.SALE_REGISTERED) {
       reversalEvents.push({
         user_id: userId,
         kind: ACCOUNTING_EVENTS.SALE_REGISTERED,
         created_at: now,
-        text: `【訂正】売上取り消し: ${originalPayload.clientName}`,
+        text: `【逆仕訳】売上取り消し: ${originalPayload.clientName}`,
         payload: {
           ...originalPayload,
-          amount: -1 * Number(originalPayload.amount),
+          amount: -1 * Number(originalPayload.amount), // マイナス金額で相殺
           tax: -1 * Number(originalPayload.tax),
-          description: `取り消し (元ID: ${eventId}) - ${reason || ""}`,
-          isReversal: true,
-          originalEventId: eventId,
+          description: `逆仕訳 (元ID: ${eventId}) - 理由: ${reason}`,
+          isReversal: true, // 逆仕訳フラグ
+          originalEventId: eventId, // 元のイベントID（監査証跡）
+          reversalReason: reason, // 取り消し理由（監査証跡）
+          reversedAt: now, // 取り消し日時（監査証跡）
         }
       });
     } else if (originalEvent.kind === ACCOUNTING_EVENTS.EXPENSE_REGISTERED) {
@@ -145,30 +273,35 @@ accountingRouter.post("/void", async (req, res) => {
         user_id: userId,
         kind: ACCOUNTING_EVENTS.EXPENSE_REGISTERED,
         created_at: now,
-        text: `【訂正】経費取り消し: ${originalPayload.merchant}`,
+        text: `【逆仕訳】経費取り消し: ${originalPayload.merchant}`,
         payload: {
           ...originalPayload,
-          amount: -1 * Number(originalPayload.amount),
-          description: `取り消し (元ID: ${eventId}) - ${reason || ""}`,
-          isReversal: true,
-          originalEventId: eventId,
-          status: "approved"
+          amount: -1 * Number(originalPayload.amount), // マイナス金額で相殺
+          description: `逆仕訳 (元ID: ${eventId}) - 理由: ${reason}`,
+          isReversal: true, // 逆仕訳フラグ
+          originalEventId: eventId, // 元のイベントID（監査証跡）
+          reversalReason: reason, // 取り消し理由（監査証跡）
+          reversedAt: now, // 取り消し日時（監査証跡）
+          status: "approved" // 逆仕訳は自動承認
         }
       });
     } else {
       return res.status(400).json({ error: "このイベントは取り消せません" });
     }
 
+    // OPSポイントも逆仕訳で返還
     if (originalPayload.opsReward > 0) {
       reversalEvents.push({
         user_id: userId,
         kind: ACCOUNTING_EVENTS.OPS_POINT_GRANTED,
         created_at: now,
-        text: `【OPS】ポイント没収 (取り消し)`,
+        text: `【逆仕訳】OPSポイント返還 (取引取り消し)`,
         payload: {
-          amount: -1 * Number(originalPayload.opsReward),
-          reason: `取引取り消しによる返還 (元ID: ${eventId})`,
-          sourceEvent: eventId
+          amount: -1 * Number(originalPayload.opsReward), // マイナスポイントで返還
+          reason: `取引取り消しによる返還 (元ID: ${eventId}) - 理由: ${reason}`,
+          sourceEvent: eventId,
+          isReversal: true,
+          originalEventId: eventId,
         }
       });
     }
@@ -261,7 +394,7 @@ accountingRouter.post("/expenses", async (req, res) => {
     const { manualData, siteName: bodySiteName } = req.body;
     if (!manualData) return res.status(400).json({ error: "データ不足" });
 
-    const { amount, merchantName, date, category, description, siteName: manualSiteName } = manualData as ExpenseManualInput;
+    const { amount, merchantName, date, category, description, siteName: manualSiteName, items } = manualData as ExpenseManualInput;
     const numericAmount = Number(amount);
 
     // 重複チェック
@@ -290,6 +423,7 @@ accountingRouter.post("/expenses", async (req, res) => {
       voteId: status === "pending_vote" ? `vote-${Date.now()}` : undefined,
       manual: true,
       siteName: manualSiteName || bodySiteName || undefined,
+      items: items && items.length > 0 ? items : undefined, // 品名リスト
     };
 
     const { error } = await r.supabase.from("events").insert([
@@ -352,9 +486,40 @@ accountingRouter.get("/dashboard", async (_req, res) => {
         .limit(20)
     ]);
 
-    if (statsRes.error) throw statsRes.error;
-    if (rankingRes.error) throw rankingRes.error;
-    if (historyRes.error) throw historyRes.error;
+    // エラーチェック（接続タイムアウトエラーの詳細ログ）
+    if (statsRes.error) {
+      const isTimeout = statsRes.error.message?.includes("timeout") || 
+                       statsRes.error.message?.includes("fetch failed");
+      if (isTimeout) {
+        console.error("Dashboard: get_accounting_stats timeout", {
+          error: statsRes.error.message,
+          url: process.env.SUPABASE_URL,
+        });
+      }
+      throw statsRes.error;
+    }
+    if (rankingRes.error) {
+      const isTimeout = rankingRes.error.message?.includes("timeout") || 
+                       rankingRes.error.message?.includes("fetch failed");
+      if (isTimeout) {
+        console.error("Dashboard: get_ops_ranking timeout", {
+          error: rankingRes.error.message,
+          url: process.env.SUPABASE_URL,
+        });
+      }
+      throw rankingRes.error;
+    }
+    if (historyRes.error) {
+      const isTimeout = historyRes.error.message?.includes("timeout") || 
+                       historyRes.error.message?.includes("fetch failed");
+      if (isTimeout) {
+        console.error("Dashboard: events query timeout", {
+          error: historyRes.error.message,
+          url: process.env.SUPABASE_URL,
+        });
+      }
+      throw historyRes.error;
+    }
 
     // 集計結果の取り出し
     const { sales, expenses } = statsRes.data as { sales: number; expenses: number };
@@ -406,9 +571,300 @@ accountingRouter.get("/dashboard", async (_req, res) => {
 
     return res.json(response);
 
-  } catch (err) {
+  } catch (err: any) {
+    // 接続タイムアウトエラーの特別な処理
+    const isTimeoutError = 
+      err?.message?.includes("timeout") ||
+      err?.message?.includes("fetch failed") ||
+      err?.code === "UND_ERR_CONNECT_TIMEOUT" ||
+      err?.error?.message?.includes("timeout") ||
+      err?.error?.message?.includes("fetch failed");
+    
+    if (isTimeoutError) {
+      console.error("Dashboard fetch error: Supabase connection timeout", {
+        message: err?.message || err?.error?.message,
+        code: err?.code || err?.error?.code,
+        url: process.env.SUPABASE_URL,
+      });
+      return res.status(503).json({ 
+        error: "サービスが一時的に利用できません。しばらくしてから再度お試しください。",
+        type: "ConnectionTimeout"
+      });
+    }
+    
     console.error("Dashboard fetch error:", err);
     return res.status(500).json({ error: "ダッシュボードの取得に失敗しました" });
+  }
+});
+
+/**
+ * 月別利益データ取得（予測用）
+ * GET /api/v1/accounting/monthly-profit
+ * 過去数ヶ月の利益データを返す
+ */
+accountingRouter.get("/monthly-profit", async (_req, res) => {
+  try {
+    const now = new Date();
+    const months: Array<{ month: string; profit: number; sales: number; expenses: number }> = [];
+    
+    // 過去6ヶ月分のデータを取得
+    for (let i = 5; i >= 0; i--) {
+      const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+      const endOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1);
+      const monthStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, "0")}`;
+
+      try {
+        const statsRes = await supabaseAdmin.rpc("get_accounting_stats", {
+          start_date: startOfMonth,
+          end_date: endOfMonth
+        });
+
+        if (statsRes.error) {
+          console.warn(`[Monthly Profit] Failed to get stats for ${monthStr}:`, statsRes.error);
+          months.push({ month: monthStr, profit: 0, sales: 0, expenses: 0 });
+          continue;
+        }
+
+        const { sales, expenses } = statsRes.data as { sales: number; expenses: number };
+        const profit = Number(sales) - Number(expenses);
+        months.push({ month: monthStr, profit, sales: Number(sales), expenses: Number(expenses) });
+      } catch (err) {
+        console.warn(`[Monthly Profit] Error for ${monthStr}:`, err);
+        months.push({ month: monthStr, profit: 0, sales: 0, expenses: 0 });
+      }
+    }
+
+    // 予測計算（簡単な移動平均）
+    const profits = months.map(m => m.profit).filter(p => p > 0);
+    let predictedProfit = 0;
+    
+    if (profits.length > 0) {
+      // 直近3ヶ月の平均
+      const recentMonths = profits.slice(-3);
+      const avg = recentMonths.reduce((sum, p) => sum + p, 0) / recentMonths.length;
+      
+      // トレンドを考慮（直近2ヶ月の変化率）
+      if (profits.length >= 2) {
+        const lastTwo = profits.slice(-2);
+        const trend = lastTwo[1] - lastTwo[0];
+        predictedProfit = Math.max(0, Math.round(avg + trend * 0.5)); // トレンドの50%を反映
+      } else {
+        predictedProfit = Math.round(avg);
+      }
+    }
+
+    return res.json({
+      ok: true,
+      months,
+      predicted: {
+        currentMonth: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+        profit: predictedProfit,
+      },
+    });
+  } catch (err: any) {
+    console.error("[Monthly Profit] Error:", err);
+    return res.status(500).json({ ok: false, error: "月別利益データの取得に失敗しました" });
+  }
+});
+
+/**
+ * 請求書生成
+ * GET /api/v1/accounting/invoice
+ * query: { startDate: string, endDate: string, clientName: string }
+ */
+accountingRouter.get("/invoice", async (req, res) => {
+  try {
+    const { startDate, endDate, clientName } = req.query;
+
+    if (!startDate || !endDate || !clientName) {
+      return res.status(400).json({ error: "startDate, endDate, clientName が必要です" });
+    }
+
+    // URLデコードされた取引先名を取得
+    const decodedClientName = decodeURIComponent(clientName as string);
+    console.log("[Invoice] Request params:", { startDate, endDate, clientName: decodedClientName });
+
+    // 期間内の該当取引先の売上データを取得
+    const { data: events, error } = await supabaseAdmin
+      .from("events")
+      .select("*")
+      .eq("kind", ACCOUNTING_EVENTS.SALE_REGISTERED)
+      .eq("payload->>clientName", decodedClientName)
+      .gte("payload->>occurredAt", startDate as string)
+      .lte("payload->>occurredAt", endDate as string)
+      .order("payload->>occurredAt", { ascending: true });
+
+    if (error) {
+      console.error("[Invoice] Database error:", error);
+      throw error;
+    }
+
+    console.log(`[Invoice] Found ${events?.length || 0} events for client: ${decodedClientName}`);
+
+    // 取り消しデータを除外（isReversalがtrueのものは除外）
+    const validEvents = (events || []).filter((ev: any) => {
+      const payload = ev.payload as SalePayload;
+      return !(payload as any).isReversal;
+    });
+
+    if (validEvents.length === 0) {
+      // デバッグ情報を含めて返す
+      const allEventsInPeriod = await supabaseAdmin
+        .from("events")
+        .select("payload->>clientName, payload->>occurredAt")
+        .eq("kind", ACCOUNTING_EVENTS.SALE_REGISTERED)
+        .gte("payload->>occurredAt", startDate as string)
+        .lte("payload->>occurredAt", endDate as string);
+
+      const availableClients = new Set(
+        (allEventsInPeriod.data || []).map((ev: any) => ev.payload?.clientName).filter(Boolean)
+      );
+
+      return res.status(404).json({
+        error: "該当する売上データが見つかりません",
+        details: {
+          requestedClient: decodedClientName,
+          period: { startDate, endDate },
+          availableClients: Array.from(availableClients),
+          totalEventsInPeriod: allEventsInPeriod.data?.length || 0,
+        },
+      });
+    }
+
+    // 明細を生成
+    const items: Array<{
+      description: string;
+      quantity: number;
+      unitPrice: number;
+      amount: number;
+      date: string;
+      siteName?: string;
+    }> = [];
+
+    // 消費税の内訳を計算（10%対象と対象外に分ける）
+    let taxableAmount = 0; // 10%対象金額（税抜）
+    let taxExemptAmount = 0; // 対象外金額（税抜）
+    let totalTax = 0;
+
+    validEvents.forEach((ev: any) => {
+      const payload = ev.payload as SalePayload;
+      const amount = Number(payload.amount) || 0; // 税抜金額
+      const tax = Number(payload.tax) || 0;
+      
+      // 消費税がある場合は10%対象、ない場合は対象外
+      if (tax > 0) {
+        taxableAmount += amount;
+        totalTax += tax;
+      } else {
+        taxExemptAmount += amount;
+      }
+    });
+
+    // 明細を生成（税抜金額で表示 - 会計上一般的な形式）
+    validEvents.forEach((ev: any) => {
+      const payload = ev.payload as SalePayload;
+      const amount = Number(payload.amount) || 0; // 税抜金額
+      const tax = Number(payload.tax) || 0;
+
+      // 日付と現場名を分離
+      const dateStr = payload.occurredAt.split("T")[0];
+      const dateLabel = new Date(dateStr).toLocaleDateString("ja-JP", {
+        month: "numeric",
+        day: "numeric",
+      });
+      
+      // 現場名と説明を分離
+      // 1. payload.siteName があればそれを優先
+      // 2. payload.description から日付パターン（例: "12/1"）を除去して現場名として使用
+      // 3. それでも取得できない場合は undefined
+      let siteName: string | undefined = payload.siteName;
+      let description: string = "工事代金";
+      
+      if (!siteName && payload.description) {
+        // description から日付パターン（"12/1" や "1/15" など）を除去
+        const datePattern = /^\d{1,2}\/\d{1,2}\s*/;
+        const cleanedDescription = payload.description.replace(datePattern, "").trim();
+        
+        if (cleanedDescription.length > 0) {
+          // 日付を除去した後に文字が残っている場合は、それを現場名として使用
+          siteName = cleanedDescription;
+          description = "工事代金";
+        } else {
+          // 日付パターンしかない、または日付パターンで始まらない場合は、description をそのまま使用
+          // ただし、日付パターンで始まる場合は "工事代金" に統一
+          if (datePattern.test(payload.description)) {
+            description = "工事代金";
+          } else {
+            description = payload.description;
+          }
+        }
+      } else if (payload.description && payload.description !== siteName) {
+        // siteName と description が異なる場合は、description をそのまま使用
+        // ただし、日付パターンで始まる場合は除去
+        const datePattern = /^\d{1,2}\/\d{1,2}\s*/;
+        description = payload.description.replace(datePattern, "").trim() || "工事代金";
+      }
+
+      items.push({
+        description: description, // 日付と現場名を分離した説明
+        quantity: 1,
+        unitPrice: amount, // 税抜単価
+        amount: amount, // 税抜金額
+        date: dateLabel, // 日付ラベル（表示用）
+        siteName: siteName, // 現場名（分離表示用）
+      });
+    });
+
+    // 合計計算
+    const subtotal = taxableAmount + taxExemptAmount; // 税抜小計
+    const total = subtotal + totalTax; // 税込合計
+
+    // 領収書番号を生成（YYYYMMDD-XXX形式）
+    const today = new Date();
+    const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
+    const invoiceNumber = `${dateStr}-${String(validEvents.length).padStart(3, "0")}`;
+
+    // 発行元情報（設定から取得するか、デフォルト値を設定）
+    // 画像から読み取った情報を基にデフォルト値を設定
+    const issuerInfo = {
+      companyName: "ハウスデバック",
+      representative: "宮崎 剛士",
+      address: "〒136-0071 東京都江東区亀戸 5-28-2",
+      phone: "TEL: 090-4017-6397",
+      email: "rostockcompany1230@gmail.com",
+      registrationNumber: "登録番号: T3810420492797",
+    };
+
+    const invoiceData = {
+      invoiceNumber,
+      issueDate: today.toISOString().split("T")[0],
+      clientName: clientName as string,
+      issuer: issuerInfo,
+      items,
+      subtotal,
+      tax: totalTax,
+      total,
+      taxBreakdown: {
+        taxable10: {
+          amount: taxableAmount,
+          tax: totalTax,
+        },
+        exempt: {
+          amount: taxExemptAmount,
+          tax: 0,
+        },
+      },
+      period: {
+        startDate: startDate as string,
+        endDate: endDate as string,
+      },
+    };
+
+    return res.json({ ok: true, invoice: invoiceData });
+  } catch (err) {
+    console.error("Invoice generation error:", err);
+    return res.status(500).json({ error: "請求書の生成に失敗しました" });
   }
 });
 
