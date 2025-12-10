@@ -1,0 +1,118 @@
+.container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.videoWrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.controls {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.skipButton {
+  pointer-events: auto;
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-main, #1e293b);
+  border: none;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+}
+
+.skipButton:hover {
+  background: #fff;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+}
+
+.loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  z-index: 1;
+}
+
+/* Retro Game Mode */
+.container.retro {
+  background: #0a0a0f !important;
+  font-family: 'DotGothic16', 'Press Start 2P', monospace !important;
+}
+
+.container.retro .video {
+  border: 2px solid #00ffff;
+  box-shadow:
+    0 0 20px rgba(0, 255, 255, 0.5),
+    4px 4px 0px #000000;
+}
+
+.container.retro .skipButton {
+  background: #1a1a2e !important;
+  color: #00ffff !important;
+  border: 2px solid #00ffff !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  box-shadow:
+    0 0 10px rgba(0, 255, 255, 0.5),
+    2px 2px 0px #000000 !important;
+}
+
+.container.retro .skipButton:hover {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  transform: translate(2px, 2px) !important;
+  box-shadow:
+    0 0 15px rgba(0, 255, 255, 0.8),
+    2px 2px 0px #000000 !important;
+}
+
+.container.retro .loading {
+  color: #00ffff !important;
+  text-shadow:
+    0 0 10px rgba(0, 255, 255, 0.8),
+    0 0 20px rgba(0, 255, 255, 0.5);
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 4px !important;
+}
+

@@ -16,7 +16,11 @@
   touch-action: none;
   user-select: none;
   transition: transform 0.2s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1)),
-              box-shadow 0.2s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1));
+              box-shadow 0.2s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1)),
+              width 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+              height 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+              border-radius 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+              opacity 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275));
 }
 
 .fab:hover {
@@ -28,17 +32,61 @@
   transform: scale(0.95);
 }
 
-/* モバイル用：右下固定 */
+/* モバイル用：初期位置（ドラッグ可能なため固定はしない） */
 .fabMobile {
-  right: 24px;
-  bottom: 24px;
-  left: auto;
-  top: auto;
+  /* 位置はインラインスタイル（positionStyle）で制御 */
+  /* モバイルでもドラッグ可能にするため、CSS固定位置は削除 */
 }
 
 /* PC用：ドラッグ可能（位置はインラインスタイルで制御） */
 .fabDesktop {
   /* 位置はインラインスタイルで制御 */
+}
+
+/* 格納状態（Docked）: 画面端に吸着した時のスタイル */
+.fab.docked {
+  /* 縦長のピル型に変形（画面端に張り付く） */
+  width: 48px;
+  height: 120px;
+  /* 不透明度を下げて背景を見やすく */
+  opacity: 0.75;
+  /* アイコンサイズはコンポーネント側で制御 */
+}
+
+/* 右端に吸着している場合の角丸 */
+.fab.docked.dockedRight {
+  width: 48px;
+  height: 120px;
+  border-radius: var(--radius-lg, 16px) 0 0 var(--radius-lg, 16px);
+}
+
+/* 左端に吸着している場合の角丸 */
+.fab.docked.dockedLeft {
+  width: 48px;
+  height: 120px;
+  border-radius: 0 var(--radius-lg, 16px) var(--radius-lg, 16px) 0;
+}
+
+/* アニメーション中の状態 */
+.fab.animating {
+  /* アニメーション中はtransitionを有効化 */
+  transition: left 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+              top 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+              width 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+              height 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+              border-radius 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+              opacity 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275));
+}
+
+/* 格納状態でのホバー効果 */
+.fab.docked:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+  /* 格納時は拡大しない方が自然 */
+}
+
+.fab.docked:active {
+  transform: scale(0.98);
 }
 
 /* オーバーレイ（モバイルのみ） */
@@ -60,6 +108,7 @@
 }
 
 /* Retro Game Mode対応 - 8bit Game Style */
+/* レトロゲームモードでは格納機能を無効化（通常のFABのまま） */
 body.retro-game .fab {
   background: #1a1a2e !important;
   color: #0a0a0f !important;
@@ -69,6 +118,18 @@ body.retro-game .fab {
     0 0 10px rgba(0, 255, 255, 0.5),
     4px 4px 0px #000000 !important;
   transition: transform 0.1s steps(1, end) !important;
+  /* レトロモードでは形状変化を無効化 */
+  width: 56px !important;
+  height: 56px !important;
+  opacity: 1 !important;
+}
+
+/* レトロゲームモードでは格納状態のスタイルを無効化 */
+body.retro-game .fab.docked {
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 0 !important;
+  opacity: 1 !important;
 }
 
 body.retro-game .fab:hover {

@@ -8,7 +8,9 @@ import { useTScoreRealtime } from "./useTScoreRealtime";
 
 const BANDIT_CACHE_KEY = "luqo.banditMission.v1";
 
-// キャッシュから個人ミッションを取得（期限切れチェック付き）
+// キャッシュから個人ミッションを取得（期限切れチェックのみ）
+// 14日間は固定なので、スコアが変わっても同じミッションを表示する
+// キャッシュが失われても、APIを呼び出せばバックエンドがDBから既存のミッションを返す
 function loadBanditCache(): BanditSuggestResponse | null {
     if (typeof window === "undefined") return null;
     
@@ -16,10 +18,13 @@ function loadBanditCache(): BanditSuggestResponse | null {
     if (!raw) return null;
     
     try {
-        const cached = JSON.parse(raw) as { data: BanditSuggestResponse; missionEndAt: string };
+        const cached = JSON.parse(raw) as { 
+            data: BanditSuggestResponse; 
+            missionEndAt: string;
+        };
         const endAt = new Date(cached.missionEndAt);
         
-        // 期限切れチェック
+        // 期限切れチェックのみ（14日間のミッション期間が過ぎた場合のみ無効化）
         if (isNaN(endAt.getTime()) || endAt.getTime() < Date.now()) {
             window.localStorage.removeItem(BANDIT_CACHE_KEY);
             return null;
@@ -72,18 +77,21 @@ export function useDashboardData() {
         }
     }, [isErrorGreeting, greeting, showSnackbar]);
 
-    // Banditの取得ロジック（キャッシュ優先）
+    // Banditの取得ロジック（キャッシュ優先、期限切れ時のみ再取得）
+    // 14日間は固定なので、スコアが変わっても同じミッションを表示する
+    // キャッシュが失われても、APIを呼び出せばバックエンドがDBから既存のミッションを返す
     useEffect(() => {
         if (!score.total) return;
         
-        // まずキャッシュをチェック
+        // まずキャッシュをチェック（期限切れチェックのみ）
         const cached = loadBanditCache();
         if (cached) {
             setBanditData(cached);
-            return; // キャッシュがあればAPIを呼ばない
+            return; // キャッシュがあって期限切れでなければAPIを呼ばない
         }
         
-        // キャッシュがない場合のみAPIを呼び出す
+        // キャッシュがない、または期限切れの場合はAPIを呼び出す
+        // バックエンドは14日以内でシーズンIDが一致すればDBから既存のミッションを返す
         setBanditLoading(true);
         const history = readHistoryOnce();
         void fetchBanditSuggestion({
@@ -94,7 +102,8 @@ export function useDashboardData() {
             .then((res) => {
                 if (res?.ok) {
                     setBanditData(res);
-                    saveBanditCache(res); // 取得したデータをキャッシュに保存
+                    // 取得したデータをキャッシュに保存
+                    saveBanditCache(res);
                 }
             })
             .catch((e) => {
@@ -166,7 +175,7 @@ export function useDashboardData() {
             window.localStorage.removeItem(BANDIT_CACHE_KEY);
         }
         
-        // 再取得
+        // 再取得（バックエンドがDBから既存のミッションを返す）
         if (score.total) {
             setBanditLoading(true);
             const history = readHistoryOnce();
@@ -178,6 +187,7 @@ export function useDashboardData() {
                 .then((res) => {
                     if (res?.ok) {
                         setBanditData(res);
+                        // 取得したデータをキャッシュに保存
                         saveBanditCache(res);
                     }
                 })
@@ -187,7 +197,7 @@ export function useDashboardData() {
                 })
                 .finally(() => setBanditLoading(false));
         }
-    }, [score.total, score.LU, score.Q, score.O, score.ui]);
+    }, [score.total, score.LU, score.Q, score.O, score.ui, historyBumpId]);
 
     return {
         score,

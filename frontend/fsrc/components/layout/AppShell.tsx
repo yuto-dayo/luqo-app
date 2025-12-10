@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { NavLink } from "react-router-dom";
 import { NotificationBell, NotificationList } from "../NotificationBell";
 import { useResponsive } from "../../hooks/useResponsive";
@@ -12,6 +12,8 @@ type Props = {
 };
 
 const STORAGE_KEY = "luqo_retro_game_mode";
+const SCROLL_HIDE_THRESHOLD = 100; // ヘッダーを隠すスクロール位置（ページ最上部からこの距離以上）
+const SCROLL_DIRECTION_THRESHOLD = 1; // スクロール方向判定の閾値（これ以下の差分は無視）
 
 const AppShell: React.FC<Props> = ({ children }) => {
   const { isMobile } = useResponsive();
@@ -19,6 +21,10 @@ const AppShell: React.FC<Props> = ({ children }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isRetroGameMode, setIsRetroGameMode] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  
+  // スクロール検知用のref
+  const lastScrollY = useRef(0);
 
   // Retro Game Modeの初期化（localStorageから読み込み）
   useEffect(() => {
@@ -69,10 +75,83 @@ const AppShell: React.FC<Props> = ({ children }) => {
     }, 100);
   };
 
+  // スクロール検知ロジック（throttle付き）
+  const handleScroll = useCallback(() => {
+    // モバイルメニューが開いている時はヘッダーを常に表示
+    if (isMenuOpen && isMobile) {
+      setIsHeaderVisible(true);
+      return;
+    }
+
+    const currentScrollY = window.scrollY;
+
+    // ページ最上部の場合は常に表示
+    if (currentScrollY <= 0) {
+      setIsHeaderVisible(true);
+      lastScrollY.current = currentScrollY;
+      return;
+    }
+
+    // スクロール方向を判定（小さな差分は無視して滑らかに）
+    const scrollDelta = currentScrollY - lastScrollY.current;
+    const isScrollingDown = scrollDelta > SCROLL_DIRECTION_THRESHOLD;
+    const isScrollingUp = scrollDelta < -SCROLL_DIRECTION_THRESHOLD;
+
+    // 上にスクロールした場合は即座に表示（スクロール位置に関係なく）
+    if (isScrollingUp) {
+      setIsHeaderVisible(true);
+    }
+    // 下にスクロールしている場合
+    else if (isScrollingDown) {
+      // ページ最上部から一定距離以上スクロールしたらヘッダーを隠す
+      if (currentScrollY >= SCROLL_HIDE_THRESHOLD) {
+        setIsHeaderVisible(false);
+      } else {
+        // ページ最上部に近い場合は表示
+        setIsHeaderVisible(true);
+      }
+    }
+    // スクロールがほぼ停止している場合は状態を維持（滑らかな動作のため）
+
+    lastScrollY.current = currentScrollY;
+  }, [isMenuOpen, isMobile]);
+
+  // スクロールイベントリスナーの登録（requestAnimationFrameで最適化）
+  useEffect(() => {
+    let rafId: number | null = null;
+
+    const onScroll = () => {
+      // 既存のrequestAnimationFrameをキャンセル
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+
+      // 新しいrequestAnimationFrameをスケジュール
+      rafId = requestAnimationFrame(() => {
+        handleScroll();
+        rafId = null;
+      });
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    
+    // 初回のスクロール位置を設定
+    lastScrollY.current = window.scrollY;
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
+  }, [handleScroll]);
+
   // メニューが開いている時にbodyのスクロールを無効化
   useEffect(() => {
     if (isMenuOpen && isMobile) {
       document.body.style.overflow = "hidden";
+      // メニューが開いた時はヘッダーを強制表示
+      setIsHeaderVisible(true);
     } else {
       document.body.style.overflow = "";
     }
@@ -106,7 +185,10 @@ const AppShell: React.FC<Props> = ({ children }) => {
         />
       )}
 
-      <header className="app-shell__header">
+      <header 
+        className={`app-shell__header ${styles.header}`}
+        data-visible={isHeaderVisible}
+      >
         <div className="app-shell__brand">
           <span 
             className="app-shell__title" 

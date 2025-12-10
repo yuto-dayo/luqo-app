@@ -1,16 +1,24 @@
 .container {
     max-width: 900px;
     margin: 0 auto;
-    padding: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+    padding-left: var(--spacing-md);
+    padding-right: var(--spacing-md);
     font-family: "Google Sans", Roboto, Arial, sans-serif;
     background-color: var(--color-surface-container-low, #f8fafc);
     min-height: 100vh;
+    /* 左右のパディングを明示的に統一 */
+    box-sizing: border-box;
 }
 
 /* モバイル対応: コンテナのパディングを調整 */
 @media (max-width: 600px) {
     .container {
-        padding: var(--spacing-sm);
+        padding-top: var(--spacing-sm);
+        padding-bottom: var(--spacing-sm);
+        padding-left: var(--spacing-sm);
+        padding-right: var(--spacing-sm);
     }
 }
 

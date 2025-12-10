@@ -123,3 +123,4 @@ const GlitchEffect: React.FC<Props> = ({ isActive }) => {
 export default GlitchEffect;
 
 
+

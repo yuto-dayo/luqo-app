@@ -90,6 +90,9 @@
   --breakpoint-tablet: 600px;      /* Small tablets */
   --breakpoint-tablet-large: 840px; /* Large tablets */
   --breakpoint-desktop: 960px;     /* Desktop */
+  
+  /* Header Height */
+  --header-height: 64px; /* デスクトップ時のヘッダーの高さ */
 }
 
 *,
@@ -146,15 +149,48 @@ textarea {
   background: rgba(255, 255, 255, 0.85); /* Glassmorphism */
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   z-index: 50;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
+  /* Hide-on-Scroll機能のアニメーション（滑らかな動き） */
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translate3d(0, 0, 0); /* GPUアクセラレーションを有効化 */
+  -webkit-transform: translate3d(0, 0, 0); /* Safari対応 */
+}
+
+/* アクセシビリティ: 動きを減らす設定がある場合はアニメーションを無効化 */
+@media (prefers-reduced-motion: reduce) {
+  .app-shell__header {
+    transition: none;
+  }
+}
+
+/* ヘッダーが非表示の時のスタイル */
+.app-shell__header[data-visible="false"] {
+  transform: translate3d(0, -100%, 0);
+  -webkit-transform: translate3d(0, -100%, 0); /* Safari対応 */
+}
+
+/* ヘッダーが表示の時のスタイル */
+.app-shell__header[data-visible="true"] {
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0); /* Safari対応 */
 }
 
 /* モバイル対応: ヘッダーのパディングを調整 */
 @media (max-width: 640px) {
+  :root {
+    --header-height: 56px; /* モバイル時のヘッダーの高さ */
+  }
+  
   .app-shell__header {
     padding: var(--spacing-sm) var(--spacing-md);
   }
@@ -215,6 +251,7 @@ textarea {
   max-width: 1024px;
   margin: 0 auto;
   padding: var(--spacing-xl) var(--spacing-md);
+  padding-top: calc(var(--header-height) + var(--spacing-xl));
   /* メニューが開いている時にメインコンテンツがメニューの下に表示されないようにする */
   position: relative;
   z-index: 1;
@@ -227,12 +264,14 @@ textarea {
 @media (max-width: 600px) {
   .app-shell__main {
     padding: var(--spacing-md) var(--spacing-sm);
+    padding-top: calc(var(--header-height) + var(--spacing-md));
   }
 }
 
 @media (min-width: 600px) and (max-width: 840px) {
   .app-shell__main {
     padding: var(--spacing-lg) var(--spacing-md);
+    padding-top: calc(var(--header-height) + var(--spacing-lg));
   }
 }
 

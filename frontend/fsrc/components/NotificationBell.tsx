@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useResponsive } from "../hooks/useResponsive";
 import { useNotificationContext } from "../contexts/NotificationContext";
+import { Icon } from "./ui/Icon";
 
 type NotificationListProps = {
   /**
@@ -37,7 +38,9 @@ export const NotificationList: React.FC<NotificationListProps> = ({ alwaysExpand
 
       {notifications.length === 0 ? (
         <div style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
-          <div style={{ fontSize: "24px", marginBottom: "8px", opacity: 0.5 }}>📭</div>
+          <div style={{ marginBottom: "8px", opacity: 0.5, display: "flex", justifyContent: "center" }}>
+            <Icon name="document" size={24} color="#64748b" />
+          </div>
           新しい通知はありません
         </div>
       ) : (

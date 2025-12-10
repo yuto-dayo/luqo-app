@@ -57,7 +57,8 @@ const ClickSpark: React.FC<Props> = ({ isActive }) => {
 
     setParticles((prev) => [...prev, ...newParticles]);
     setTimeout(() => {
-      setParticles((prev) => prev.filter((p) => p.id < id + 10));
+      // 作成したパーティクル（id+1 から id+8）を削除
+      setParticles((prev) => prev.filter((p) => p.id < id + 1 || p.id > id + 8));
     }, 600);
 
   }, []);

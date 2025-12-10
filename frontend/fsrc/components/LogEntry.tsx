@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { createLogEventRequest, postLog } from "../lib/api";
 import { useSnackbar } from "../contexts/SnackbarContext";
+import { Icon } from "./ui/Icon";
 
 export const LogEntry: React.FC = () => {
     const [text, setText] = useState("");
@@ -17,7 +18,7 @@ export const LogEntry: React.FC = () => {
             const event = createLogEventRequest({ text });
             await postLog(event);
 
-            showSnackbar("ログを保存しました！🎉", "success");
+            showSnackbar("ログを保存しました！", "success");
             setText("");
         } catch (err: any) {
             console.error(err);
@@ -86,7 +87,7 @@ export const LogEntry: React.FC = () => {
                         ) : (
                             <>
                                 ログを記録
-                                <span style={{ fontSize: "1.2em" }}>✍️</span>
+                                <Icon name="pen" size={16} />
                             </>
                         )}
                     </button>

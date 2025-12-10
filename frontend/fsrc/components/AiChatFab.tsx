@@ -73,23 +73,31 @@ export const AiChatFab: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
-  // ドラッグ機能 (PCのみ有効、開いているときは無効)
-  const { position, ref: fabRef, handlers } = useDraggable({
-    onClick: () => setIsOpen((prev) => !prev),
-    disabled: isOpen || isMobile,
-    initialPosition: { x: window.innerWidth - 80, y: window.innerHeight - 80 },
+  // ドラッグ機能 (開いているときは無効、モバイルでも有効)
+  const { position, isDocked, dockSide, isAnimating, ref: fabRef, undock, handlers } = useDraggable({
+    onClick: () => setIsOpen((prev) => !prev), // デフォルトの動作（後でラップする）
+    disabled: isOpen, // モバイルでもドラッグ可能にする
+    initialPosition: { x: window.innerWidth - 80, y: window.innerHeight - 136 }, // ボタン1個分（56px）上に移動
+    snapMargin: 16,
   });
 
-  // FABのクラス名を決定
-  const fabClassName = `${styles.fab} ${isMobile ? styles.fabMobile : styles.fabDesktop}`;
+  // クリックハンドラをラップ：格納状態の時は格納を解除、そうでなければチャットを開く
+  const handleFabClick = (e: React.MouseEvent) => {
+    if (isDocked) {
+      undock();
+    } else {
+      handlers.onClick(e);
+    }
+  };
 
-  // PC用の位置スタイル（ドラッグ位置を反映）
-  const desktopPositionStyle = !isMobile
-    ? {
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-      }
-    : undefined;
+  // FABのクラス名を決定（格納状態を考慮）
+  const fabClassName = `${styles.fab} ${isMobile ? styles.fabMobile : styles.fabDesktop} ${isDocked ? styles.docked : ""} ${isDocked && dockSide ? styles[`docked${dockSide.charAt(0).toUpperCase() + dockSide.slice(1)}`] : ""} ${isAnimating ? styles.animating : ""}`;
+
+  // 位置スタイル（ドラッグ位置を反映、モバイルでも適用）
+  const positionStyle = {
+    left: `${position.x}px`,
+    top: `${position.y}px`,
+  };
 
   // レトロゲームモードではアイコンをシアンに（ホバー時はダーク）
   const [isHovered, setIsHovered] = useState(false);
@@ -103,16 +111,18 @@ export const AiChatFab: React.FC = () => {
       {(!isOpen || !isMobile) && !isAnyModalOpen && (
         <button
           ref={fabRef}
-          onPointerDown={!isMobile ? handlers.onPointerDown : undefined}
-          onPointerMove={!isMobile ? handlers.onPointerMove : undefined}
-          onPointerUp={!isMobile ? handlers.onPointerUp : undefined}
-          onClick={isMobile ? () => setIsOpen(true) : undefined}
+          onPointerDown={handlers.onPointerDown}
+          onPointerMove={handlers.onPointerMove}
+          onPointerUp={handlers.onPointerUp}
+          onPointerCancel={handlers.onPointerCancel}
+          onClick={handleFabClick}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           className={fabClassName}
-          style={desktopPositionStyle}
+          style={positionStyle}
+          aria-label={isDocked ? "格納を解除" : "チャットを開く"}
         >
-          <Icon name="chat" size={28} color={iconColor} />
+          <Icon name="chat" size={isDocked ? 20 : 28} color={iconColor} />
         </button>
       )}
 
