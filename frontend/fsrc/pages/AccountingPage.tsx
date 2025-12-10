@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { apiClient } from "../lib/apiClient";
 import { SalesInputModal } from "../components/accounting/SalesInputModal";
 import { InvoiceGeneratorModal } from "../components/accounting/InvoiceGeneratorModal";
+import { ExpenseApprovalModal } from "../components/accounting/ExpenseApprovalModal";
 import { DateRangePicker } from "../components/DateRangePicker";
 import type { AccountingDashboardData, HistoryItem } from "../types/accounting";
 import { Icon } from "../components/ui/Icon";
@@ -42,6 +43,7 @@ export default function AccountingPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false); // リアルタイム更新時のローディング（サイレント）
   const [userNames, setUserNames] = useState<Record<string, string>>({}); // userId -> name のマップ
   const [voidModal, setVoidModal] = useState<{ isOpen: boolean; item: HistoryItem | null }>({ isOpen: false, item: null });
@@ -612,9 +614,35 @@ export default function AccountingPage() {
               <Icon name="pen" size={20} color="white" />
               売上・経費登録
             </button>
+            <button
+              onClick={() => setIsApprovalModalOpen(true)}
+              style={{
+                height: "56px", padding: "0 32px", borderRadius: "28px",
+                background: "#f59e0b", color: "white", border: "none",
+                boxShadow: "0 8px 20px rgba(245, 158, 11, 0.4)",
+                display: "flex", alignItems: "center", gap: "12px",
+                fontSize: "16px", fontWeight: 700, cursor: "pointer",
+                transition: "transform 0.2s",
+                whiteSpace: "nowrap" // テキストの折り返しを防止
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+            >
+              <Icon name="check-circle" size={20} color="white" />
+              承認待ち経費
+            </button>
           </div>,
           document.body
         )}
+
+      <ExpenseApprovalModal
+        isOpen={isApprovalModalOpen}
+        onClose={() => setIsApprovalModalOpen(false)}
+        onReviewComplete={() => {
+          // 審議完了後、データを再取得
+          fetchData(false);
+        }}
+      />
 
       <SalesInputModal
         isOpen={isModalOpen}

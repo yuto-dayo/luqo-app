@@ -10,6 +10,7 @@ import TScorePage from "./pages/TScorePage";
 import StarSettingsPage from "./pages/StarSettingsPage";
 import PaymasterPage from "./pages/PaymasterPage";
 import ClientMasterPage from "./pages/ClientMasterPage";
+import WorkCategoryEditPage from "./pages/WorkCategoryEditPage";
 import { SnackbarProvider } from "./contexts/SnackbarContext";
 import { ConfirmDialogProvider } from "./contexts/ConfirmDialogContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
@@ -144,6 +145,14 @@ const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <ClientMasterPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/work-categories"
+              element={
+                <ProtectedRoute>
+                  <WorkCategoryEditPage />
                 </ProtectedRoute>
               }
             />

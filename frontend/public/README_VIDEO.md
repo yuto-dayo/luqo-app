@@ -32,3 +32,4 @@ localStorage.removeItem('luqo_has_seen_welcome_video');
 
 その後、ページをリロードすると動画が再表示されます。
 
+

@@ -22,16 +22,85 @@
   - 「○○邸」「○○マンション」「○○ビル」などの物件名や、「リノベーション」「新築工事」などの工事種別が記載されている場合は、それらを組み合わせて抽出してください。
   - 記載がない場合は null を返してください。
 - **description**: 工事名や件名の要約（例: "○○邸 リノベーション工事"）。
+- **suggestedCategory**: 工事カテゴリの推論（単一カテゴリの場合、下記ルール参照）。**後方互換性のため維持。**
+- **suggestedCategories**: 複数の工事カテゴリと各カテゴリの金額（配列、複数カテゴリがある場合）。
 
-### 2. 出力フォーマット (JSON)
+### 2. 工事カテゴリ推論ルール
+
+請求書・注文書の内容（品目、摘要、工事名など）から、工事カテゴリを推論してください。
+
+#### 単一カテゴリの場合 (suggestedCategory)
+請求書に1つの工事カテゴリのみが含まれる場合、`suggestedCategory` にカテゴリコードを設定してください。
+
+#### 複数カテゴリの場合 (suggestedCategories)
+請求書に複数の工事カテゴリが含まれ、それぞれに金額が明示されている場合（例: 明細がカテゴリごとに分割されている場合）、`suggestedCategories` 配列を使用してください。
+
+**suggestedCategoriesの形式:**
+```json
+[
+  { "categoryCode": "cloth", "amount": 500000 },
+  { "categoryCode": "electric", "amount": 300000 }
+]
+```
+
+各オブジェクトには以下を含めてください:
+- **categoryCode**: カテゴリコード（下記テーブル参照）
+- **amount**: そのカテゴリに該当する税抜金額
+
+**注意事項:**
+- `suggestedCategories` が存在する場合、`suggestedCategory` は無視されます
+- 複数のカテゴリが含まれていても、金額が分離できない場合は `suggestedCategory` に主要なカテゴリを設定してください
+
+#### 推論の優先順位:
+1. **明示的な記載**: 「クロス工事」「電気工事」などと明記されている場合は、そのまま抽出。
+2. **品目からの推論**: 品目や明細に含まれるキーワードから推論。
+3. **工事名からの推論**: 現場名や工事名に含まれるキーワードから推論。
+
+#### 代表的なカテゴリとキーワード:
+| カテゴリコード | カテゴリ名 | 推論キーワード |
+|--------------|----------|--------------|
+| cloth | クロス工事 | 壁紙, クロス, 内装, 貼替, CF, クッションフロア |
+| electric | 電気工事 | 電気, 配線, コンセント, 照明, 分電盤, スイッチ |
+| floor | 床工事 | フローリング, 床材, 畳, カーペット, タイル床 |
+| paint | 塗装工事 | 塗装, ペンキ, 外壁塗装, 防水塗装 |
+| plumbing | 水道工事 | 水道, 配管, 給排水, トイレ, 洗面, 浴室 |
+| carpentry | 大工工事 | 大工, 木工, 造作, 框, 巾木 |
+| exterior | 外構工事 | 外構, フェンス, 門扉, アプローチ, 駐車場 |
+| demolition | 解体工事 | 解体, 撤去, 廃棄 |
+| hvac | 空調工事 | エアコン, 空調, 換気, ダクト |
+| general | 総合工事 | リフォーム, リノベーション, 改修, 新築 |
+
+#### 推論できない場合:
+- 上記に該当しない場合や判断が難しい場合は、`null` を返してください。
+- ユーザーが後から選択できるため、無理に推論する必要はありません。
+
+### 3. 出力フォーマット (JSON)
 
 必ず以下のJSON形式のみを出力してください。Markdownのコードブロックは不要です。
 
+**単一カテゴリの場合:**
 {
   "amount": number | null,
   "client": string,
   "date": string,
   "siteName": string | null,
   "description": "件名の要約",
+  "suggestedCategory": string | null,
+  "suggestedCategories": null,
+  "confidence": number // 0.0 ~ 1.0 (読み取りの確信度)
+}
+
+**複数カテゴリの場合:**
+{
+  "amount": number | null, // 全体の合計金額（参考）
+  "client": string,
+  "date": string,
+  "siteName": string | null,
+  "description": "件名の要約",
+  "suggestedCategory": null,
+  "suggestedCategories": [
+    { "categoryCode": "cloth", "amount": 500000 },
+    { "categoryCode": "electric", "amount": 300000 }
+  ],
   "confidence": number // 0.0 ~ 1.0 (読み取りの確信度)
 }

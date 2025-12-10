@@ -1,4 +1,18 @@
 /**
+ * 工事カテゴリ定義
+ * work_categories テーブルと同期
+ */
+export type WorkCategory = {
+  id: string; // UUID
+  code: string; // システム内部識別子（例: 'cloth', 'electric'）
+  label: string; // 表示名（例: 'クロス工事', '電気工事'）
+  defaultWeight: number; // TScore計算時の重み係数（デフォルト: 1.0）
+  isActive: boolean; // アクティブフラグ
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/**
  * 売上確定イベントのペイロード
  * accounting_sale_registered
  */
@@ -13,6 +27,9 @@ export type SalePayload = {
   // 分析・UX用メタデータ
   inputType: "ocr_verified" | "manual_entry";
   opsReward: number; // このアクションで付与されたポイント
+  // 工事カテゴリ情報
+  workCategoryId?: string; // 工事カテゴリID（UUID）
+  workCategoryLabel?: string; // 工事カテゴリ表示名（スナップショット用）
 };
 
 /**
@@ -64,6 +81,10 @@ export type ExpensePayload = {
   risk_level: "HIGH" | "LOW";
   status: string;
   voteId?: string;
+  reviewerId?: string; // レビュアーのユーザーID（ランダム選定）
+  reviewerName?: string; // レビュアー名（スナップショット）
+  reviewedAt?: string; // 審議完了日時
+  reviewFeedback?: string; // 否決時のフィードバック
   manual: boolean;
   siteName?: string;
   items?: ExpenseItem[]; // 品名リスト

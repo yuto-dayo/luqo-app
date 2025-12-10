@@ -40,7 +40,11 @@ export const SalesInputModal: React.FC<Props> = ({ isOpen, onClose, onSuccess })
     date, setDate, siteName, setSiteName,
     items, setItems, addItem, updateItem, removeItem,
     loading, result, burst, isContinuous, setIsContinuous,
-    clients, handleSubmit, resetForm
+    clients, handleSubmit, resetForm,
+    // 工事カテゴリ関連（複数選択対応）
+    selectedCategories, toggleCategorySelection, updateCategoryAmount, removeCategory,
+    workCategories, loadingCategories,
+    setSuggestedCategory, setSuggestedCategories
   } = useSalesForm({ isOpen, onSuccess });
 
   // 2. ファイルアップロードロジックの取得
@@ -75,6 +79,17 @@ export const SalesInputModal: React.FC<Props> = ({ isOpen, onClose, onSuccess })
           setClientName(data.clientName);
           console.log("[SalesInputModal] 取引先名を設定（clientNameキー）:", data.clientName);
         }
+        // AIからの推奨カテゴリを設定（複数カテゴリ対応）
+        if (data.suggestedCategories && Array.isArray(data.suggestedCategories) && data.suggestedCategories.length > 0) {
+          // 複数カテゴリが検出された場合
+          console.log("[SalesInputModal] 複数推奨カテゴリを設定:", data.suggestedCategories);
+          // 複数カテゴリと金額のペアを設定
+          setSuggestedCategories(data.suggestedCategories);
+        } else if (data.suggestedCategory) {
+          // 単一カテゴリの場合（後方互換性）
+          console.log("[SalesInputModal] 推奨カテゴリを設定:", data.suggestedCategory);
+          setSuggestedCategory(data.suggestedCategory);
+        }
       } else {
         if (data.merchant) setMerchantName(data.merchant);
         if (data.category) setCategory(data.category);
@@ -108,7 +123,16 @@ export const SalesInputModal: React.FC<Props> = ({ isOpen, onClose, onSuccess })
   const isSales = mode === "sales";
   const themeColor = isSales ? "#0f172a" : "#b91c1c";
   const surfaceBg = isSales ? themeSeed.softBg : "linear-gradient(145deg, #fff1f2, #fee2e2)";
-  const canSubmit = !loading && Number(amount) > 0 && !!date && (isSales ? !!clientName.trim() : !!merchantName.trim());
+  // バリデーション: カテゴリが選択されている場合は、各カテゴリに金額が入力されているかチェック
+  const hasValidCategoryAmounts = selectedCategories.length === 0 || 
+    selectedCategories.some(sc => {
+      const catAmount = Number(sc.amount);
+      return Number.isFinite(catAmount) && catAmount > 0;
+    });
+  const canSubmit = !loading && 
+    ((isSales && selectedCategories.length > 0) ? hasValidCategoryAmounts : Number(amount) > 0) &&
+    !!date && 
+    (isSales ? !!clientName.trim() : !!merchantName.trim());
 
   return (
     <div
@@ -116,7 +140,9 @@ export const SalesInputModal: React.FC<Props> = ({ isOpen, onClose, onSuccess })
       style={{
         position: "fixed", inset: 0, zIndex: 9999,
         background: "rgba(9, 9, 34, 0.55)", backdropFilter: "blur(4px)",
-        display: "flex", alignItems: "center", justifyContent: "center", padding: "16px",
+        display: "flex", alignItems: "flex-start", justifyContent: "center", 
+        padding: "16px",
+        paddingTop: "calc(var(--header-height) + 16px)",
         overflowY: "auto",
       }}
     >
@@ -272,35 +298,190 @@ export const SalesInputModal: React.FC<Props> = ({ isOpen, onClose, onSuccess })
               {!previewUrl && !analyzing && <div style={{ textAlign: "center", fontSize: "10px", color: "#94a3b8", marginTop: 4 }}>またはファイルをここにドロップ</div>}
             </div>
 
-            {/* 金額入力 */}
-            <div>
-              <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: 6 }}>金額 (税抜)</label>
-              <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 18, top: "50%", transform: "translateY(-50%)", fontSize: "22px", color: "#94a3b8", fontWeight: 700 }}>¥</span>
-                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" autoFocus style={{ width: "100%", fontSize: "36px", fontWeight: 800, padding: "14px 14px 14px 44px", borderRadius: "18px", border: `2px solid ${isSales ? "#e2e8f0" : "#fecdd3"}`, background: isSales ? "#f8fafc" : "#fff1f2", outline: "none", textAlign: "right", letterSpacing: "-1px", color: themeColor }} />
+            {/* 金額入力（カテゴリが選択されていない場合のみ表示） */}
+            {isSales && selectedCategories.length === 0 && (
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 700, color: "#1e293b", display: "block", marginBottom: 6 }}>金額 (税抜)</label>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 18, top: "50%", transform: "translateY(-50%)", fontSize: "22px", color: "#94a3b8", fontWeight: 700 }}>¥</span>
+                  <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" autoFocus style={{ width: "100%", fontSize: "36px", fontWeight: 800, padding: "14px 14px 14px 44px", borderRadius: "18px", border: `2px solid ${isSales ? "#e2e8f0" : "#fecdd3"}`, background: isSales ? "#f8fafc" : "#fff1f2", outline: "none", textAlign: "right", letterSpacing: "-1px", color: themeColor }} />
+                </div>
               </div>
-            </div>
+            )}
+            {!isSales && (
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 700, color: "#1e293b", display: "block", marginBottom: 6 }}>金額 (税抜)</label>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 18, top: "50%", transform: "translateY(-50%)", fontSize: "22px", color: "#94a3b8", fontWeight: 700 }}>¥</span>
+                  <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" autoFocus style={{ width: "100%", fontSize: "36px", fontWeight: 800, padding: "14px 14px 14px 44px", borderRadius: "18px", border: `2px solid ${isSales ? "#e2e8f0" : "#fecdd3"}`, background: isSales ? "#f8fafc" : "#fff1f2", outline: "none", textAlign: "right", letterSpacing: "-1px", color: themeColor }} />
+                </div>
+              </div>
+            )}
 
             {/* 入力フィールド (売上/経費で分岐) */}
             {isSales ? (
               <div style={{ display: "grid", gap: "16px" }}>
                 <div>
-                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: 6 }}>取引先</label>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#1e293b", display: "block", marginBottom: 6 }}>取引先</label>
                   <select value={clientName} onChange={(e) => setClientName(e.target.value)} style={{ width: "100%", padding: "14px", borderRadius: "14px", border: "1px solid #e2e8f0", background: "#fff", fontSize: "14px", outline: "none" }}>
                     <option value="" disabled>選択してください</option>
                     {clients.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                   <div style={{ textAlign: "right", marginTop: 4 }}><a href="/settings" style={{ fontSize: 10, color: "#2563eb", textDecoration: "none" }}>＋ 設定で追加する</a></div>
                 </div>
+
+                {/* 工事カテゴリ選択（複数選択対応） */}
+                <div>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#1e293b", display: "block", marginBottom: 6 }}>
+                    工事カテゴリ
+                    <span style={{ fontWeight: 400, color: "#64748b", marginLeft: 4 }}>(任意)</span>
+                  </label>
+                  {/* 複数選択可能なカテゴリリスト */}
+                  <div
+                    style={{
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "14px",
+                      background: "#fff",
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      padding: "8px",
+                    }}
+                  >
+                    {loadingCategories ? (
+                      <div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "14px" }}>
+                        読み込み中...
+                      </div>
+                    ) : workCategories.length === 0 ? (
+                      <div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "14px" }}>
+                        カテゴリが登録されていません
+                      </div>
+                    ) : (
+                      workCategories.map((cat) => {
+                        const isSelected = selectedCategories.some(sc => sc.id === cat.id);
+                        return (
+                          <label
+                            key={cat.id}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              padding: "10px 12px",
+                              borderRadius: "10px",
+                              cursor: "pointer",
+                              background: isSelected ? "#f8fafc" : "transparent",
+                              border: isSelected ? "1px solid #0f172a" : "1px solid transparent",
+                              marginBottom: "4px",
+                              transition: "all 0.2s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) {
+                                e.currentTarget.style.background = "#f8fafc";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelected) {
+                                e.currentTarget.style.background = "transparent";
+                              }
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleCategorySelection(cat.id)}
+                              style={{
+                                width: "18px",
+                                height: "18px",
+                                marginRight: "10px",
+                                cursor: "pointer",
+                                accentColor: "#0f172a",
+                              }}
+                            />
+                            <span style={{ fontSize: "14px", fontWeight: isSelected ? 700 : 500, color: "#1e293b", flex: 1 }}>
+                              {cat.label}
+                              {cat.defaultWeight !== 1.0 && (
+                                <span style={{ fontSize: "12px", color: "#64748b", marginLeft: "4px" }}>
+                                  (×{cat.defaultWeight.toFixed(1)})
+                                </span>
+                              )}
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                  
+                  {/* 選択されたカテゴリごとの金額入力フィールド */}
+                  {selectedCategories.length > 0 && (
+                    <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {selectedCategories.map((selectedCat) => (
+                        <div
+                          key={selectedCat.id}
+                          style={{
+                            padding: "12px",
+                            borderRadius: "12px",
+                            background: "#f8fafc",
+                            border: "1px solid #e2e8f0",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                            <label style={{ fontSize: "12px", fontWeight: 700, color: "#1e293b" }}>
+                              {selectedCat.label} の金額
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => removeCategory(selectedCat.id)}
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                border: "1px solid #e2e8f0",
+                                background: "#fff",
+                                color: "#64748b",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              削除
+                            </button>
+                          </div>
+                          <div style={{ position: "relative" }}>
+                            <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: "18px", color: "#94a3b8", fontWeight: 700 }}>¥</span>
+                            <input
+                              type="number"
+                              value={selectedCat.amount}
+                              onChange={(e) => updateCategoryAmount(selectedCat.id, e.target.value)}
+                              placeholder="0"
+                              style={{
+                                width: "100%",
+                                fontSize: "24px",
+                                fontWeight: 800,
+                                padding: "10px 10px 10px 36px",
+                                borderRadius: "10px",
+                                border: selectedCat.amount ? "2px solid #0f172a" : "1px solid #e2e8f0",
+                                background: "#fff",
+                                outline: "none",
+                                textAlign: "right",
+                                letterSpacing: "-1px",
+                                color: "#0f172a",
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      <div style={{ marginTop: "4px", fontSize: 10, color: "#1e293b", fontWeight: 500 }}>
+                        選択したカテゴリの売上はTScore計算に反映されます
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div style={{ display: "grid", gap: "16px" }}>
                 <div>
-                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: 6 }}>支払先 (店名)</label>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#1e293b", display: "block", marginBottom: 6 }}>支払先 (店名)</label>
                   <input type="text" value={merchantName} onChange={(e) => setMerchantName(e.target.value)} placeholder="例: コーナンPro" style={{ width: "100%", padding: "14px", borderRadius: "14px", border: "1px solid #e2e8f0", background: "rgba(255,255,255,0.9)", fontSize: "14px", outline: "none" }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: 6 }}>科目</label>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#1e293b", display: "block", marginBottom: 6 }}>科目</label>
                   <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "12px", border: "1px solid #e2e8f0", background: "#fff", fontSize: "14px" }}>
                     <option value="material">🛠️ 材料費</option>
                     <option value="tool">🪚 工具器具</option>
@@ -313,7 +494,7 @@ export const SalesInputModal: React.FC<Props> = ({ isOpen, onClose, onSuccess })
                 {/* 品名リスト */}
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                    <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block" }}>品名（何を買ったか）</label>
+                    <label style={{ fontSize: "11px", fontWeight: 700, color: "#1e293b", display: "block" }}>品名（何を買ったか）</label>
                     <button
                       type="button"
                       onClick={addItem}
@@ -530,11 +711,11 @@ export const SalesInputModal: React.FC<Props> = ({ isOpen, onClose, onSuccess })
 
             {/* 共通フィールド: 現場名・日付 */}
             <div>
-              <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: 6 }}>現場名</label>
+              <label style={{ fontSize: "11px", fontWeight: 700, color: "#1e293b", display: "block", marginBottom: 6 }}>現場名</label>
               <input type="text" value={siteName} onChange={(e) => setSiteName(e.target.value)} placeholder="例: 練馬区S邸 リノベーション" style={{ width: "100%", padding: "14px", borderRadius: "14px", border: "1px solid #e2e8f0", background: "rgba(255,255,255,0.9)", fontSize: "14px", outline: "none" }} />
             </div>
             <div>
-              <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569", display: "block", marginBottom: 6 }}>日付</label>
+              <label style={{ fontSize: "11px", fontWeight: 700, color: "#1e293b", display: "block", marginBottom: 6 }}>日付</label>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "14px", border: "1px solid #e2e8f0", background: "rgba(255,255,255,0.9)", fontSize: "14px", outline: "none" }} />
             </div>
 

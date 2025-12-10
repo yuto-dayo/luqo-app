@@ -131,3 +131,4 @@ export const WelcomeVideo: React.FC<Props> = ({ videoPath, onComplete, onSkip })
   );
 };
 
+

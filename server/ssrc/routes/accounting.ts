@@ -319,11 +319,15 @@ accountingRouter.post("/void", async (req, res) => {
 
 /**
  * A. 売上登録
+ * 工事カテゴリ対応版
  */
 accountingRouter.post("/sales", async (req, res) => {
   const r = req as AuthedRequest;
   try {
-    const { amount, clientName, date, inputType, description, evidenceImage, siteName } = req.body || {};
+    const { 
+      amount, clientName, date, inputType, description, evidenceImage, siteName,
+      workCategoryId, workCategoryLabel // 工事カテゴリ情報
+    } = req.body || {};
     const userId = r.userId;
     const numericAmount = Number(amount);
 
@@ -334,6 +338,8 @@ accountingRouter.post("/sales", async (req, res) => {
     const isManual = inputType === "manual" || inputType === "manual_entry";
     const rewardPoints = isManual ? MANUAL_ENTRY_REWARD : OCR_ENTRY_REWARD;
 
+    // 工事カテゴリ情報をペイロードに追加
+    // カテゴリラベルはスナップショットとして保存（将来のカテゴリ名変更に備える）
     const salePayload: SalePayload = {
       amount: numericAmount,
       tax: Math.floor(numericAmount * 0.1),
@@ -344,9 +350,14 @@ accountingRouter.post("/sales", async (req, res) => {
       evidenceUrl: evidenceImage || undefined,
       inputType: isManual ? "manual_entry" : "ocr_verified",
       opsReward: rewardPoints,
+      workCategoryId: workCategoryId || undefined,
+      workCategoryLabel: workCategoryLabel || undefined,
     };
 
     const now = new Date().toISOString();
+    
+    // テキストにカテゴリ情報を含める（履歴表示用）
+    const categoryText = workCategoryLabel ? ` [${workCategoryLabel}]` : "";
 
     const { error } = await r.supabase.from("events").insert([
       {
@@ -354,14 +365,14 @@ accountingRouter.post("/sales", async (req, res) => {
         kind: ACCOUNTING_EVENTS.SALE_REGISTERED,
         payload: salePayload,
         created_at: now,
-        text: `【売上】${clientName} ¥${numericAmount.toLocaleString()}`,
+        text: `【売上】${clientName} ¥${numericAmount.toLocaleString()}${categoryText}`,
       },
       {
         user_id: userId,
         kind: ACCOUNTING_EVENTS.OPS_POINT_GRANTED,
         payload: {
           amount: rewardPoints,
-          reason: `売上登録: ${clientName}`,
+          reason: `売上登録: ${clientName}${categoryText}`,
           sourceEvent: ACCOUNTING_EVENTS.SALE_REGISTERED,
         },
         created_at: now,
@@ -412,6 +423,28 @@ accountingRouter.post("/expenses", async (req, res) => {
     const isHighRisk = (numericAmount > 5000 && category !== "material") || numericAmount > 30000;
     const status = isHighRisk ? "pending_vote" : "approved";
 
+    // 審議が必要な場合、ランダムでレビュアーを選定
+    let reviewerId: string | undefined;
+    let reviewerName: string | undefined;
+    if (status === "pending_vote") {
+      // チームメンバー全員を取得（自分を除く）
+      const { data: allUsers, error: usersError } = await r.supabase
+        .from("profiles")
+        .select("id, name")
+        .neq("id", userId); // 自分以外
+
+      if (!usersError && allUsers && allUsers.length > 0) {
+        // ランダムで1人選定
+        const randomIndex = Math.floor(Math.random() * allUsers.length);
+        const selectedReviewer = allUsers[randomIndex];
+        reviewerId = selectedReviewer.id;
+        reviewerName = selectedReviewer.name || "不明";
+      } else {
+        // レビュアーが見つからない場合は承認待ちのまま（後で手動対応）
+        console.warn("[Expense] No reviewers available, expense will remain pending");
+      }
+    }
+
     const payload: ExpensePayload = {
       amount: numericAmount,
       merchant: merchantName,
@@ -421,6 +454,8 @@ accountingRouter.post("/expenses", async (req, res) => {
       risk_level: isHighRisk ? "HIGH" : "LOW",
       status,
       voteId: status === "pending_vote" ? `vote-${Date.now()}` : undefined,
+      reviewerId,
+      reviewerName,
       manual: true,
       siteName: manualSiteName || bodySiteName || undefined,
       items: items && items.length > 0 ? items : undefined, // 品名リスト
@@ -865,6 +900,153 @@ accountingRouter.get("/invoice", async (req, res) => {
   } catch (err) {
     console.error("Invoice generation error:", err);
     return res.status(500).json({ error: "請求書の生成に失敗しました" });
+  }
+});
+
+/**
+ * 承認待ち経費一覧取得（レビュアー用）
+ * GET /api/v1/accounting/pending-expenses
+ * 自分がレビュアーに選ばれた審議中の経費を取得
+ */
+accountingRouter.get("/pending-expenses", async (req, res) => {
+  const r = req as AuthedRequest;
+  const userId = r.userId;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+  try {
+    // 自分がレビュアーに選ばれた審議中の経費を取得
+    const { data: events, error } = await r.supabase
+      .from("events")
+      .select("*")
+      .eq("kind", ACCOUNTING_EVENTS.EXPENSE_REGISTERED)
+      .eq("payload->>status", "pending_vote")
+      .eq("payload->>reviewerId", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    // 履歴形式に整形
+    const pendingExpenses: Array<HistoryItem & {
+      eventId: string;
+      applicantId: string;
+      applicantName?: string;
+      reviewerName?: string;
+      createdAt: string;
+    }> = (events || []).map((ev: any) => {
+      const p = ev.payload as ExpensePayload;
+      return {
+        id: ev.id,
+        eventId: ev.id,
+        kind: "expense" as const,
+        date: p.date || ev.created_at,
+        title: p.merchant,
+        amount: Number(p.amount) || 0,
+        category: p.category,
+        status: p.status,
+        applicantId: ev.user_id,
+        reviewerName: p.reviewerName,
+        createdAt: ev.created_at,
+      };
+    });
+
+    // 申請者名を取得
+    const applicantIds = [...new Set(pendingExpenses.map((e) => e.applicantId))];
+    if (applicantIds.length > 0) {
+      const { data: profiles } = await r.supabase
+        .from("profiles")
+        .select("id, name")
+        .in("id", applicantIds);
+
+      const nameMap = new Map((profiles || []).map((p: any) => [p.id, p.name]));
+      pendingExpenses.forEach((expense) => {
+        expense.applicantName = nameMap.get(expense.applicantId);
+      });
+    }
+
+    return res.json({ ok: true, items: pendingExpenses });
+  } catch (err: any) {
+    console.error("[Pending Expenses] Error:", err);
+    return res.status(500).json({ error: "承認待ち経費の取得に失敗しました" });
+  }
+});
+
+/**
+ * 経費の承認/否決
+ * POST /api/v1/accounting/review-expense
+ * Body: { eventId: string, action: "approve" | "reject", feedback?: string }
+ */
+accountingRouter.post("/review-expense", async (req, res) => {
+  const r = req as AuthedRequest;
+  const userId = r.userId;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+  try {
+    const { eventId, action, feedback } = req.body;
+
+    if (!eventId || !action) {
+      return res.status(400).json({ error: "eventId と action が必要です" });
+    }
+
+    if (!["approve", "reject"].includes(action)) {
+      return res.status(400).json({ error: "action は 'approve' または 'reject' である必要があります" });
+    }
+
+    // 否決の場合はフィードバック必須
+    if (action === "reject" && (!feedback || feedback.trim().length === 0)) {
+      return res.status(400).json({ error: "否決の場合はフィードバックが必要です" });
+    }
+
+    // 対象の経費イベントを取得
+    const { data: event, error: fetchError } = await r.supabase
+      .from("events")
+      .select("*")
+      .eq("id", eventId)
+      .eq("kind", ACCOUNTING_EVENTS.EXPENSE_REGISTERED)
+      .single();
+
+    if (fetchError || !event) {
+      return res.status(404).json({ error: "対象の経費が見つかりません" });
+    }
+
+    const payload = event.payload as ExpensePayload;
+
+    // レビュアー権限チェック
+    if (payload.reviewerId !== userId) {
+      return res.status(403).json({ error: "この経費のレビュアーではありません" });
+    }
+
+    // ステータスチェック
+    if (payload.status !== "pending_vote") {
+      return res.status(400).json({ error: "この経費は既に審議が完了しています" });
+    }
+
+    // ステータスを更新
+    const newStatus = action === "approve" ? "approved" : "rejected";
+    const updatedPayload: ExpensePayload = {
+      ...payload,
+      status: newStatus,
+      reviewedAt: new Date().toISOString(),
+      reviewFeedback: action === "reject" ? feedback?.trim() : undefined,
+    };
+
+    const { error: updateError } = await r.supabase
+      .from("events")
+      .update({
+        payload: updatedPayload,
+        text: `【経費】${payload.merchant} ¥${payload.amount.toLocaleString()} (${newStatus === "approved" ? "承認済み" : "否決"})`,
+      })
+      .eq("id", eventId);
+
+    if (updateError) throw updateError;
+
+    return res.json({
+      ok: true,
+      message: action === "approve" ? "経費を承認しました" : "経費を否決しました",
+      status: newStatus,
+    });
+  } catch (err: any) {
+    console.error("[Review Expense] Error:", err);
+    return res.status(500).json({ error: "審議処理に失敗しました" });
   }
 });
 

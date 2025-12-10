@@ -2,6 +2,8 @@ import { Router } from "express";
 import type { AuthedRequest } from "../types/authed-request";
 import { supabaseAdmin } from "../services/supabaseClient";
 import { runPrompt } from "../services/aiPromptService";
+import type { WorkCategory, SalePayload } from "../types/accounting";
+import { ACCOUNTING_EVENTS } from "../types/accounting";
 
 const masterRouter = Router();
 const STAR_VOTE_THRESHOLD = Number(process.env.STAR_VOTE_THRESHOLD ?? "3");
@@ -60,6 +62,498 @@ masterRouter.delete("/clients/:id", async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   return res.json({ ok: true });
+});
+
+// ====================================================
+// 工事カテゴリ管理 API
+// ====================================================
+
+/**
+ * 工事カテゴリ一覧取得
+ * GET /api/v1/master/categories
+ */
+masterRouter.get("/categories", async (req, res) => {
+  const r = req as unknown as AuthedRequest;
+  try {
+    const { data, error } = await r.supabase
+      .from("work_categories")
+      .select("*")
+      .eq("is_active", true)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("[Categories] Failed to fetch", error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    // snake_case を camelCase に変換
+    const categories: WorkCategory[] = (data || []).map((row: any) => ({
+      id: row.id,
+      code: row.code,
+      label: row.label,
+      defaultWeight: Number(row.default_weight),
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return res.json({ ok: true, categories });
+  } catch (err: any) {
+    console.error("[Categories] Unexpected error", err);
+    return res.status(500).json({ ok: false, error: err?.message ?? "unknown error" });
+  }
+});
+
+/**
+ * 工事カテゴリ新規追加（申請システム経由）
+ * POST /api/v1/master/categories/propose-add
+ * Body: { label: string, reason: string }
+ * 
+ * 注意: 直接追加はできません。申請システム経由で追加してください。
+ */
+masterRouter.post("/categories/propose-add", async (req, res) => {
+  const r = req as unknown as AuthedRequest;
+  const { label, reason } = req.body || {};
+
+  if (!label || typeof label !== "string" || label.trim().length === 0) {
+    return res.status(400).json({ ok: false, error: "ラベル（label）は必須です" });
+  }
+
+  if (!reason || typeof reason !== "string" || reason.trim().length === 0) {
+    return res.status(400).json({ ok: false, error: "追加理由（reason）は必須です" });
+  }
+
+  try {
+    // AI審査
+    const aiResultText = await runPrompt(
+      "category_audit.prompt",
+      JSON.stringify({
+        action: "ADD",
+        label: label.trim(),
+        reason: reason.trim(),
+      })
+    );
+
+    let aiData: any;
+    try {
+      const normalized = aiResultText
+        .trim()
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/```$/i, "");
+      aiData = JSON.parse(normalized);
+    } catch (parseErr) {
+      console.error("[Category Add Propose] Failed to parse AI response", parseErr, aiResultText);
+      return res.status(502).json({ ok: false, error: "Invalid AI response" });
+    }
+
+    // 提案を保存
+    const { data, error } = await supabaseAdmin.from("star_proposals").insert({
+      proposer_id: r.userId,
+      change_type: "CATEGORY_ADD",
+      new_definition: {
+        label: label.trim(),
+        defaultWeight: 1.0, // デフォルトは1.0
+      },
+      reason: reason.trim(),
+      ai_review_comment: aiData.review_comment,
+      ai_approval: aiData.is_valid ?? null,
+    }).select().single();
+
+    if (error) {
+      console.error("[Category Add Propose] DB insert error", error);
+      return res.status(500).json({ ok: false, error: "Failed to save proposal" });
+    }
+
+    return res.json({ ok: true, proposal: data, aiReview: aiData });
+  } catch (err: any) {
+    console.error("[Category Add Propose] Unexpected error", err);
+    return res.status(500).json({ ok: false, error: err?.message ?? "unknown error" });
+  }
+});
+
+/**
+ * 工事カテゴリ更新
+ * PUT /api/v1/master/categories/:id
+ * Body: { label?: string, isActive?: boolean }
+ * 
+ * 注意: 重み係数（defaultWeight）の変更は申請システム経由で行ってください。
+ * このAPIでは重み係数の直接変更はできません。
+ */
+masterRouter.put("/categories/:id", async (req, res) => {
+  const r = req as unknown as AuthedRequest;
+  const { id } = req.params;
+  const { label, isActive } = req.body || {};
+
+  if (!id) {
+    return res.status(400).json({ ok: false, error: "IDは必須です" });
+  }
+
+  // 重み係数の直接変更は禁止
+  if (req.body?.defaultWeight !== undefined) {
+    return res.status(400).json({
+      ok: false,
+      error: "重み係数の変更は申請システム経由で行ってください。POST /api/v1/master/categories/propose-weight-change を使用してください。",
+    });
+  }
+
+  try {
+    // 現在の値を取得
+    const { data: currentData, error: fetchError } = await r.supabase
+      .from("work_categories")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !currentData) {
+      return res.status(404).json({ ok: false, error: "カテゴリが見つかりません" });
+    }
+
+    // 更新データの構築
+    const updateData: Record<string, any> = {};
+
+    if (label !== undefined && typeof label === "string" && label.trim().length > 0) {
+      updateData.label = label.trim();
+    }
+
+    if (isActive !== undefined && typeof isActive === "boolean") {
+      updateData.is_active = isActive;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ ok: false, error: "更新するデータがありません" });
+    }
+
+    const { data, error } = await r.supabase
+      .from("work_categories")
+      .update(updateData)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[Categories] Failed to update", error);
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    // snake_case を camelCase に変換
+    const category: WorkCategory = {
+      id: data.id,
+      code: data.code,
+      label: data.label,
+      defaultWeight: Number(data.default_weight),
+      isActive: data.is_active,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+
+    return res.json({
+      ok: true,
+      category,
+      message: "カテゴリを更新しました",
+    });
+  } catch (err: any) {
+    console.error("[Categories] Unexpected error", err);
+    return res.status(500).json({ ok: false, error: err?.message ?? "unknown error" });
+  }
+});
+
+/**
+ * 工事カテゴリ削除（申請システム経由）
+ * POST /api/v1/master/categories/propose-delete
+ * Body: { categoryId: string, reason: string }
+ * 
+ * 注意: 直接削除はできません。申請システム経由で削除してください。
+ */
+masterRouter.post("/categories/propose-delete", async (req, res) => {
+  const r = req as unknown as AuthedRequest;
+  const { categoryId, reason } = req.body || {};
+
+  if (!categoryId || typeof categoryId !== "string") {
+    return res.status(400).json({ ok: false, error: "カテゴリID（categoryId）は必須です" });
+  }
+
+  if (!reason || typeof reason !== "string" || reason.trim().length === 0) {
+    return res.status(400).json({ ok: false, error: "削除理由（reason）は必須です" });
+  }
+
+  try {
+    // カテゴリ情報を取得
+    const { data: category, error: categoryError } = await supabaseAdmin
+      .from("work_categories")
+      .select("*")
+      .eq("id", categoryId)
+      .single();
+
+    if (categoryError || !category) {
+      return res.status(404).json({ ok: false, error: "カテゴリが見つかりません" });
+    }
+
+    // 過去の売上データで使用されているかチェック
+    const { data: salesData, error: salesError } = await supabaseAdmin
+      .from("events")
+      .select("id")
+      .eq("kind", ACCOUNTING_EVENTS.SALE_REGISTERED)
+      .contains("payload", { workCategoryId: categoryId })
+      .limit(1);
+
+    if (salesError) {
+      console.error("[Category Delete Propose] Failed to check sales data:", salesError);
+    }
+
+    const hasSalesData = salesData && salesData.length > 0;
+
+    // AI審査
+    const aiResultText = await runPrompt(
+      "category_audit.prompt",
+      JSON.stringify({
+        action: "DELETE",
+        categoryId,
+        categoryLabel: category.label,
+        reason: reason.trim(),
+        hasSalesData,
+      })
+    );
+
+    let aiData: any;
+    try {
+      const normalized = aiResultText
+        .trim()
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/```$/i, "");
+      aiData = JSON.parse(normalized);
+    } catch (parseErr) {
+      console.error("[Category Delete Propose] Failed to parse AI response", parseErr, aiResultText);
+      return res.status(502).json({ ok: false, error: "Invalid AI response" });
+    }
+
+    // 売上データが使用されている場合は、AIが承認しても却下
+    if (hasSalesData && aiData.is_valid) {
+      aiData.is_valid = false;
+      aiData.review_comment = `過去の売上データで使用されているため削除できません。${aiData.review_comment || ""}`;
+    }
+
+    // 提案を保存
+    const { data, error } = await supabaseAdmin.from("star_proposals").insert({
+      proposer_id: r.userId,
+      change_type: "CATEGORY_DELETE",
+      target_id: categoryId,
+      new_definition: {
+        categoryId,
+        categoryLabel: category.label,
+      },
+      reason: reason.trim(),
+      ai_review_comment: aiData.review_comment,
+      ai_approval: aiData.is_valid ?? null,
+    }).select().single();
+
+    if (error) {
+      console.error("[Category Delete Propose] DB insert error", error);
+      return res.status(500).json({ ok: false, error: "Failed to save proposal" });
+    }
+
+    return res.json({ ok: true, proposal: data, aiReview: aiData });
+  } catch (err: any) {
+    console.error("[Category Delete Propose] Unexpected error", err);
+    return res.status(500).json({ ok: false, error: err?.message ?? "unknown error" });
+  }
+});
+
+/**
+ * 総売上からカテゴリ毎の売上割合を計算し、重み係数を自動調整
+ * POST /api/v1/master/categories/auto-adjust-weights
+ * 
+ * 全期間の総売上から各カテゴリの割合を計算し、その割合に基づいて重み係数を自動調整します。
+ * 割合が高いカテゴリほど重み係数が高くなります（最大3.0、最小0.1）。
+ */
+masterRouter.post("/categories/auto-adjust-weights", async (req, res) => {
+  const r = req as unknown as AuthedRequest;
+  try {
+    // 1. 全期間の売上データを取得
+    const { data: salesEvents, error: salesError } = await supabaseAdmin
+      .from("events")
+      .select("*")
+      .eq("kind", ACCOUNTING_EVENTS.SALE_REGISTERED);
+
+    if (salesError) {
+      console.error("[Auto Adjust Weights] Failed to fetch sales:", salesError);
+      return res.status(500).json({ ok: false, error: "売上データの取得に失敗しました" });
+    }
+
+    // 2. カテゴリ別の売上金額を集計
+    const categorySales = new Map<string, number>();
+    let totalSales = 0;
+
+    (salesEvents || []).forEach((event: any) => {
+      const payload = event.payload as SalePayload;
+      
+      // 逆仕訳（取り消し）データは除外
+      if ((payload as any).isReversal) return;
+
+      const amount = Number(payload.amount) || 0;
+      const categoryId = payload.workCategoryId || "uncategorized";
+      
+      const current = categorySales.get(categoryId) || 0;
+      categorySales.set(categoryId, current + amount);
+      totalSales += amount;
+    });
+
+    if (totalSales === 0) {
+      return res.status(400).json({ ok: false, error: "売上データが存在しません" });
+    }
+
+    // 3. カテゴリマスタを取得
+    const { data: categories, error: categoriesError } = await supabaseAdmin
+      .from("work_categories")
+      .select("*")
+      .eq("is_active", true);
+
+    if (categoriesError) {
+      console.error("[Auto Adjust Weights] Failed to fetch categories:", categoriesError);
+      return res.status(500).json({ ok: false, error: "カテゴリの取得に失敗しました" });
+    }
+
+    // 4. 各カテゴリの売上割合を計算し、重み係数を決定
+    // 割合が高いほど重み係数が高くなる（線形変換: 0% → 0.1, 100% → 3.0）
+    const updates: Array<{ id: string; oldWeight: number; newWeight: number; ratio: number }> = [];
+
+    for (const category of categories || []) {
+      const sales = categorySales.get(category.id) || 0;
+      const ratio = totalSales > 0 ? sales / totalSales : 0;
+      
+      // 割合から重み係数を計算（0% → 0.1, 100% → 3.0）
+      // ただし、データがないカテゴリは1.0のまま
+      let newWeight = 1.0;
+      if (sales > 0) {
+        // 線形変換: ratio (0-1) → weight (0.1-3.0)
+        newWeight = 0.1 + (ratio * 2.9);
+        newWeight = Math.max(0.1, Math.min(3.0, newWeight)); // 範囲制限
+      }
+
+      const oldWeight = Number(category.default_weight) || 1.0;
+      
+      // 変更がある場合のみ更新
+      if (Math.abs(oldWeight - newWeight) > 0.01) {
+        updates.push({
+          id: category.id,
+          oldWeight,
+          newWeight: Math.round(newWeight * 10) / 10, // 小数点第1位まで
+          ratio: Math.round(ratio * 1000) / 10, // パーセンテージ（小数点第1位まで）
+        });
+      }
+    }
+
+    // 5. 重み係数を一括更新
+    const updatePromises = updates.map((update) =>
+      supabaseAdmin
+        .from("work_categories")
+        .update({ default_weight: update.newWeight })
+        .eq("id", update.id)
+    );
+
+    const results = await Promise.all(updatePromises);
+    const errors = results.filter((r) => r.error);
+    
+    if (errors.length > 0) {
+      console.error("[Auto Adjust Weights] Failed to update some categories:", errors);
+      return res.status(500).json({ ok: false, error: "一部のカテゴリの更新に失敗しました" });
+    }
+
+    return res.json({
+      ok: true,
+      message: `${updates.length}件のカテゴリの重み係数を自動調整しました`,
+      updates: updates.map((u) => ({
+        categoryId: u.id,
+        oldWeight: u.oldWeight,
+        newWeight: u.newWeight,
+        salesRatio: u.ratio,
+      })),
+      totalSales,
+    });
+  } catch (err: any) {
+    console.error("[Auto Adjust Weights] Unexpected error", err);
+    return res.status(500).json({ ok: false, error: err?.message ?? "unknown error" });
+  }
+});
+
+/**
+ * カテゴリ重み係数変更の申請
+ * POST /api/v1/master/categories/propose-weight-change
+ * Body: { categoryId: string, newWeight: number, reason: string }
+ */
+masterRouter.post("/categories/propose-weight-change", async (req, res) => {
+  const r = req as unknown as AuthedRequest;
+  const { categoryId, newWeight, reason } = req.body || {};
+
+  if (!categoryId || typeof newWeight !== "number" || !reason || reason.trim().length === 0) {
+    return res.status(400).json({ ok: false, error: "categoryId, newWeight, reason は必須です" });
+  }
+
+  // 重み係数の範囲チェック
+  const validatedWeight = Math.max(0.1, Math.min(10.0, newWeight));
+
+  try {
+    // カテゴリ情報を取得
+    const { data: category, error: categoryError } = await supabaseAdmin
+      .from("work_categories")
+      .select("*")
+      .eq("id", categoryId)
+      .single();
+
+    if (categoryError || !category) {
+      return res.status(404).json({ ok: false, error: "カテゴリが見つかりません" });
+    }
+
+    const currentWeight = Number(category.default_weight) || 1.0;
+
+    // AI審査
+    const aiResultText = await runPrompt(
+      "category_weight_audit.prompt",
+      JSON.stringify({
+        categoryLabel: category.label,
+        currentWeight,
+        newWeight: validatedWeight,
+        reason,
+      })
+    );
+
+    let aiData: any;
+    try {
+      const normalized = aiResultText
+        .trim()
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/```$/i, "");
+      aiData = JSON.parse(normalized);
+    } catch (parseErr) {
+      console.error("[Category Weight Propose] Failed to parse AI response", parseErr, aiResultText);
+      return res.status(502).json({ ok: false, error: "Invalid AI response" });
+    }
+
+    // 提案を保存
+    const { data, error } = await supabaseAdmin.from("star_proposals").insert({
+      proposer_id: r.userId,
+      change_type: "CATEGORY_WEIGHT",
+      target_id: categoryId,
+      new_definition: {
+        categoryId,
+        categoryLabel: category.label,
+        currentWeight,
+        newWeight: validatedWeight,
+      },
+      reason,
+      ai_review_comment: aiData.review_comment,
+      ai_approval: aiData.is_valid ?? null,
+    }).select().single();
+
+    if (error) {
+      console.error("[Category Weight Propose] DB insert error", error);
+      return res.status(500).json({ ok: false, error: "Failed to save proposal" });
+    }
+
+    return res.json({ ok: true, proposal: data, aiReview: aiData });
+  } catch (err: any) {
+    console.error("[Category Weight Propose] Unexpected error", err);
+    return res.status(500).json({ ok: false, error: err?.message ?? "unknown error" });
+  }
 });
 
 // スター定義一覧取得
@@ -424,6 +918,102 @@ masterRouter.post("/stars/vote", async (req, res) => {
 
         autoApplied = true;
         console.log(`[OKR Vote] OKR updated: ${okr.objective}`);
+      } else if (proposal.change_type === "CATEGORY_WEIGHT") {
+        // カテゴリ重み係数変更処理
+        const weightChange = proposal.new_definition as any;
+        if (!weightChange || !weightChange.categoryId || typeof weightChange.newWeight !== "number") {
+          console.error("[Category Weight Vote] Invalid weight change structure", weightChange);
+          return res.status(400).json({ ok: false, error: "Invalid weight change structure" });
+        }
+
+        const { error: updateError } = await supabaseAdmin
+          .from("work_categories")
+          .update({ default_weight: weightChange.newWeight })
+          .eq("id", weightChange.categoryId);
+
+        if (updateError) {
+          console.error("[Category Weight Vote] Failed to update category weight", updateError);
+          return res.status(500).json({ ok: false, error: "Failed to update category weight" });
+        }
+
+        autoApplied = true;
+        console.log(`[Category Weight Vote] Weight updated: ${weightChange.categoryLabel} ${weightChange.currentWeight} → ${weightChange.newWeight}`);
+      } else if (proposal.change_type === "CATEGORY_ADD") {
+        // カテゴリ追加処理
+        const categoryData = proposal.new_definition as any;
+        if (!categoryData || !categoryData.label) {
+          console.error("[Category Add Vote] Invalid category data", categoryData);
+          return res.status(400).json({ ok: false, error: "Invalid category data" });
+        }
+
+        // codeの自動生成
+        const timestamp = Date.now();
+        const sanitizedLabel = categoryData.label
+          .trim()
+          .toLowerCase()
+          .replace(/[^\w\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/g, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_|_$/g, "");
+        const code = `custom_${sanitizedLabel.slice(0, 20)}_${timestamp}`;
+
+        const { error: insertError } = await supabaseAdmin
+          .from("work_categories")
+          .insert({
+            code,
+            label: categoryData.label.trim(),
+            default_weight: categoryData.defaultWeight || 1.0,
+            is_active: true,
+          });
+
+        if (insertError) {
+          console.error("[Category Add Vote] Failed to insert category", insertError);
+          // 重複エラーの場合は既に存在するので成功として扱う
+          if (insertError.code === "23505") {
+            console.warn("[Category Add Vote] Category already exists, treating as success");
+            autoApplied = true;
+          } else {
+            return res.status(500).json({ ok: false, error: "Failed to add category" });
+          }
+        } else {
+          autoApplied = true;
+          console.log(`[Category Add Vote] Category added: ${categoryData.label}`);
+        }
+      } else if (proposal.change_type === "CATEGORY_DELETE") {
+        // カテゴリ削除処理（論理削除）
+        const categoryData = proposal.new_definition as any;
+        if (!categoryData || !categoryData.categoryId) {
+          console.error("[Category Delete Vote] Invalid category data", categoryData);
+          return res.status(400).json({ ok: false, error: "Invalid category data" });
+        }
+
+        // 過去の売上データで使用されているか再チェック
+        const { data: salesData } = await supabaseAdmin
+          .from("events")
+          .select("id")
+          .eq("kind", ACCOUNTING_EVENTS.SALE_REGISTERED)
+          .contains("payload", { workCategoryId: categoryData.categoryId })
+          .limit(1);
+
+        if (salesData && salesData.length > 0) {
+          console.warn("[Category Delete Vote] Category has sales data, cannot delete");
+          return res.status(400).json({
+            ok: false,
+            error: "過去の売上データで使用されているため削除できません",
+          });
+        }
+
+        const { error: deleteError } = await supabaseAdmin
+          .from("work_categories")
+          .update({ is_active: false })
+          .eq("id", categoryData.categoryId);
+
+        if (deleteError) {
+          console.error("[Category Delete Vote] Failed to delete category", deleteError);
+          return res.status(500).json({ ok: false, error: "Failed to delete category" });
+        }
+
+        autoApplied = true;
+        console.log(`[Category Delete Vote] Category deleted: ${categoryData.categoryLabel}`);
       } else {
         console.warn("[Star Vote] Unsupported change_type:", proposal.change_type);
       }

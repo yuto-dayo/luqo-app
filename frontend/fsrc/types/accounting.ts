@@ -1,3 +1,17 @@
+/**
+ * 工事カテゴリ定義
+ * work_categories テーブルと同期
+ */
+export type WorkCategory = {
+  id: string; // UUID
+  code: string; // システム内部識別子（例: 'cloth', 'electric'）
+  label: string; // 表示名（例: 'クロス工事', '電気工事'）
+  defaultWeight: number; // TScore計算時の重み係数（デフォルト: 1.0）
+  isActive: boolean; // アクティブフラグ
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type SalePayload = {
   amount: number;
   clientName: string;
@@ -5,6 +19,9 @@ export type SalePayload = {
   occurredAt: string;
   inputType: "manual" | "ocr";
   description?: string;
+  // 工事カテゴリ情報
+  workCategoryId?: string; // 工事カテゴリID（UUID）
+  workCategoryLabel?: string; // 工事カテゴリ表示名（スナップショット用）
 };
 
 export type AccountingDashboardData = {
@@ -56,7 +73,7 @@ export type HistoryItem = {
   title: string;
   amount: number;
   category?: string;
-  status?: string;
+  status?: string; // approved, pending_vote, rejected
 };
 
 // イベント種別の定数管理（サーバー側と同期）

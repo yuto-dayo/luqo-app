@@ -84,6 +84,12 @@ const paths: Record<string, JSX.Element> = {
   edit: <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />,
   pen: <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />,
   check: <polyline points="20 6 9 17 4 12" />,
+  "check-circle": (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="9 12 11 14 15 10" />
+    </>
+  ),
   info: (
     <>
       <circle cx="12" cy="12" r="10" />

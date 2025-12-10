@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "../services/supabase";
 import { apiClient } from "../lib/apiClient";
 import { Icon } from "../components/ui/Icon";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { useNavigate } from "react-router-dom";
-import { useRetroGameMode } from "../hooks/useRetroGameMode";
 import styles from "./SettingsPage.module.css";
 
 // 設定アイテムコンポーネント
@@ -104,6 +103,7 @@ const SettingsPage: React.FC = () => {
   const [newPassword, setNewPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loadingProfile, setLoadingProfile] = useState(false);
+  
 
   const { showSnackbar } = useSnackbar();
 
@@ -117,6 +117,7 @@ const SettingsPage: React.FC = () => {
       console.error(e);
     }
   };
+
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -247,6 +248,18 @@ const SettingsPage: React.FC = () => {
           title="取引先マスタ"
           subtitle="取引先の追加・編集・削除"
           onClick={() => navigate("/settings/clients")}
+          action={<span className={styles.settingsItemAction}>▶</span>}
+        />
+      </div>
+
+      {/* 工事カテゴリ設定セクション */}
+      <SettingsSectionHeader title="工事カテゴリ設定" />
+      <div className={styles.cardContainer}>
+        <SettingsItem
+          icon="info"
+          title="工事カテゴリ編集"
+          subtitle="カテゴリの追加・編集・削除・重み係数設定"
+          onClick={() => navigate("/settings/work-categories")}
           action={<span className={styles.settingsItemAction}>▶</span>}
         />
       </div>

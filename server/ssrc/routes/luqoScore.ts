@@ -160,17 +160,18 @@ router.post(
         // B. ★AI学習 (Feedback Loop Implementation)
         try {
           // 1. その月の最新の提案ログを取得
-          // (本来はmonthで厳密にフィルタすべきだが、簡易的に直近1件を取得して月を照合する)
+          // ★修正: limitに頼らず、payload->>monthで直接フィルタリング（取りこぼし防止）
           const { data: suggestions } = await r.supabase
             .from("events")
             .select("payload")
             .eq("user_id", userId)
             .eq("kind", "bandit_suggestion_log")
+            .eq("payload->>month", month) // JSONの中身で直接絞り込む
             .order("created_at", { ascending: false })
-            .limit(5); // 直近5件から該当月を探す
+            .limit(1); // 該当月の最新1件を取得
 
-          // 該当月の提案を探す
-          const targetSuggestion = suggestions?.find((s: any) => s.payload?.month === month);
+          // 該当月の提案を取得（既にフィルタリング済み）
+          const targetSuggestion = suggestions && suggestions.length > 0 ? suggestions[0] : null;
 
           if (targetSuggestion) {
             const { armId, targetDimension } = targetSuggestion.payload;

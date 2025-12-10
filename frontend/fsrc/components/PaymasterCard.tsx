@@ -3,6 +3,7 @@ import { apiClient } from "../lib/apiClient";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { Icon } from "./ui/Icon";
 import { useRetroGameMode } from "../hooks/useRetroGameMode";
+import { useUserId } from "../hooks/useLuqoStore";
 
 type Props = {
   currentStars?: number;
@@ -76,18 +77,21 @@ export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
 
   const [teamScores, setTeamScores] = useState<number[]>([]);
   const [teamMembers, setTeamMembers] = useState<Array<{ userId: string; name: string; score: number }>>([]);
-  const [myUserId, setMyUserId] = useState<string | null>(null);
+  const myUserId = useUserId();
   const [loadingStats, setLoadingStats] = useState(false);
+  
+  // 工事カテゴリ別の内訳データ
+  const [categoryBreakdown, setCategoryBreakdown] = useState<{
+    summary: { totalAmount: number; weightedScore: number; multiplier: number; salesCount: number };
+    breakdown: Array<{ categoryLabel: string; totalAmount: number; weightedScore: number; weight: number; count: number }>;
+  } | null>(null);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [isTeamRankingExpanded, setIsTeamRankingExpanded] = useState(false);
 
   useEffect(() => {
     if (currentStars > 0) setMyTScore(currentStars);
   }, [currentStars]);
 
-  useEffect(() => {
-    // 現在のユーザーIDを取得
-    const userId = typeof window !== "undefined" ? localStorage.getItem("luqo_user_id") : null;
-    setMyUserId(userId);
-  }, []);
 
   // 会計データを取得（実績値と予測値）
   useEffect(() => {
@@ -153,6 +157,37 @@ export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
     };
     void loadTeamData();
   }, []);
+
+  // 工事カテゴリ別の内訳データを取得
+  useEffect(() => {
+    const loadCategoryBreakdown = async () => {
+      if (!myUserId) return;
+      setLoadingCategories(true);
+      try {
+        // 現在月を取得
+        const now = new Date();
+        const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        
+        const res = await apiClient.get<{
+          ok: boolean;
+          summary: { totalAmount: number; weightedScore: number; multiplier: number; salesCount: number };
+          breakdown: Array<{ categoryLabel: string; totalAmount: number; weightedScore: number; weight: number; count: number }>;
+        }>(`/api/v1/tscore/weighted-summary?month=${month}&userId=${myUserId}`);
+        
+        if (res.ok) {
+          setCategoryBreakdown({
+            summary: res.summary,
+            breakdown: res.breakdown,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to load category breakdown", e);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    void loadCategoryBreakdown();
+  }, [myUserId]);
 
   const prediction = usePayrollSimulation({
     profit,
@@ -448,6 +483,234 @@ export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
 
         <div style={{ height: 1, background: "var(--color-border)" }} />
 
+        {/* 工事カテゴリ別 売上内訳 */}
+        {categoryBreakdown && categoryBreakdown.breakdown.length > 0 && (
+          <div
+            style={{
+              background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+              borderRadius: 16,
+              padding: "20px",
+              border: "1px solid #bfdbfe",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Icon name="construction" size={18} color="#0284c7" />
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "#0c4a6e",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  工事カテゴリ別 売上内訳
+                </span>
+              </div>
+              {categoryBreakdown.summary.multiplier !== 1.0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: categoryBreakdown.summary.multiplier > 1.0 ? "#dcfce7" : "#fee2e2",
+                    color: categoryBreakdown.summary.multiplier > 1.0 ? "#166534" : "#991b1b",
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  <span>
+                    {categoryBreakdown.summary.multiplier > 1.0 ? "↑" : "↓"}
+                  </span>
+                  <span>
+                    {categoryBreakdown.summary.multiplier > 1.0 ? "+" : ""}
+                    {((categoryBreakdown.summary.multiplier - 1.0) * 100).toFixed(0)}%
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* カテゴリ別のプログレスバー */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {categoryBreakdown.breakdown
+                .sort((a, b) => b.totalAmount - a.totalAmount)
+                .map((item, idx) => {
+                  const percentage = categoryBreakdown.summary.totalAmount > 0
+                    ? (item.totalAmount / categoryBreakdown.summary.totalAmount) * 100
+                    : 0;
+                  
+                  // カテゴリごとの色を決定（Material 3 カラーパレット）
+                  const colors = [
+                    { bg: "linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)", text: "#1e40af" },
+                    { bg: "linear-gradient(90deg, #10b981 0%, #059669 100%)", text: "#065f46" },
+                    { bg: "linear-gradient(90deg, #f59e0b 0%, #d97706 100%)", text: "#92400e" },
+                    { bg: "linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%)", text: "#6b21a8" },
+                    { bg: "linear-gradient(90deg, #ec4899 0%, #db2777 100%)", text: "#9f1239" },
+                    { bg: "linear-gradient(90deg, #64748b 0%, #475569 100%)", text: "#334155" },
+                  ];
+                  const color = colors[idx % colors.length];
+
+                  return (
+                    <div key={idx} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: "50%",
+                              background: color.bg,
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: "var(--color-text-main)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {item.categoryLabel || "未分類"}
+                          </span>
+                          {item.weight !== 1.0 && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                color: "#64748b",
+                                background: "rgba(100, 116, 139, 0.1)",
+                                padding: "2px 6px",
+                                borderRadius: 4,
+                                fontWeight: 600,
+                              }}
+                            >
+                              ×{item.weight.toFixed(1)}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: "var(--color-text-sub)",
+                              minWidth: 50,
+                              textAlign: "right",
+                            }}
+                          >
+                            {percentage.toFixed(1)}%
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: color.text,
+                              minWidth: 80,
+                              textAlign: "right",
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            ¥{item.totalAmount.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          height: 8,
+                          borderRadius: 4,
+                          background: "rgba(148, 163, 184, 0.2)",
+                          overflow: "hidden",
+                          position: "relative",
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${percentage}%`,
+                            background: color.bg,
+                            borderRadius: 4,
+                            transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                            boxShadow: `0 0 8px ${color.text}40`,
+                          }}
+                        />
+                      </div>
+                      {item.weightedScore !== item.totalAmount && (
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: "#64748b",
+                            marginTop: -2,
+                            paddingLeft: 20,
+                          }}
+                        >
+                          重み付き: ¥{item.weightedScore.toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* サマリー情報 */}
+            <div
+              style={{
+                marginTop: 16,
+                padding: "12px 16px",
+                background: "rgba(255, 255, 255, 0.6)",
+                borderRadius: 12,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: 12,
+                color: "#475569",
+              }}
+            >
+              <span style={{ fontWeight: 600 }}>
+                合計売上: ¥{categoryBreakdown.summary.totalAmount.toLocaleString()}
+              </span>
+              <span style={{ fontWeight: 700, color: "#0284c7" }}>
+                重み付きスコア: ¥{categoryBreakdown.summary.weightedScore.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {loadingCategories && (
+          <div
+            style={{
+              background: "var(--color-surface-container-low)",
+              borderRadius: 16,
+              padding: "20px",
+              textAlign: "center",
+              color: "#94a3b8",
+              fontSize: 13,
+            }}
+          >
+            カテゴリ内訳を読み込み中...
+          </div>
+        )}
+
+        <div style={{ height: 1, background: "var(--color-border)" }} />
+
         {/* 個人パラメータ */}
         <div
           style={{
@@ -590,20 +853,27 @@ export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
           </div>
         </div>
 
-        {/* チームランキング表示（Google流） */}
+        {/* チームランキング表示（折りたたみ可能） */}
         <div
           style={{
             background: "var(--color-surface-container-low)",
             borderRadius: 16,
             padding: "20px",
+            border: "1px solid var(--color-border)",
           }}
         >
-          <div
+          <button
+            onClick={() => setIsTeamRankingExpanded(!isTeamRankingExpanded)}
             style={{
+              width: "100%",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: 20,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              margin: 0,
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -620,15 +890,24 @@ export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
                 Team Ranking
               </span>
             </div>
-            <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
-              {loadingStats
-                ? "読み込み中..."
-                : `${teamMembers.length}名`}
-            </span>
-          </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+                {loadingStats
+                  ? "読み込み中..."
+                  : `${teamMembers.length}名`}
+              </span>
+              <Icon
+                name={isTeamRankingExpanded ? "chevronUp" : "chevronDown"}
+                size={16}
+                color="#64748b"
+              />
+            </div>
+          </button>
 
-          {/* ランキングリスト */}
-          {loadingStats ? (
+          {/* ランキングリスト（折りたたみ可能） */}
+          {isTeamRankingExpanded && (
+            <div style={{ marginTop: 20 }}>
+              {loadingStats ? (
             <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8" }}>
               読み込み中...
             </div>
@@ -861,20 +1140,38 @@ export const PaymasterCard: React.FC<Props> = ({ currentStars = 0 }) => {
               }}
             >
               チームメンバーのデータがありません
+              </div>
+            )}
             </div>
           )}
 
-          <p
-            style={{
-              fontSize: 11,
-              color: "#94a3b8",
-              marginTop: 16,
-              lineHeight: 1.5,
-            }}
-          >
-            ※ チーム全員のTスコア状況を反映しています。
-            あなたが成長したとき、配分バランスがどう変化するかをシミュレートできます。
-          </p>
+          {!isTeamRankingExpanded && (
+            <p
+              style={{
+                fontSize: 11,
+                color: "#94a3b8",
+                marginTop: 12,
+                lineHeight: 1.5,
+                textAlign: "center",
+              }}
+            >
+              ※ クリックしてチームランキングを表示
+            </p>
+          )}
+
+          {isTeamRankingExpanded && (
+            <p
+              style={{
+                fontSize: 11,
+                color: "#94a3b8",
+                marginTop: 16,
+                lineHeight: 1.5,
+              }}
+            >
+              ※ チーム全員のTスコア状況を反映しています。
+              あなたが成長したとき、配分バランスがどう変化するかをシミュレートできます。
+            </p>
+          )}
         </div>
       </div>
     </div>

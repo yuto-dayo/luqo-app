@@ -244,6 +244,7 @@ ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE star_definitions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE star_proposals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE star_proposal_votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE active_seasons ENABLE ROW LEVEL SECURITY;
 
 -- 既存ポリシー削除
 DROP POLICY IF EXISTS "Public Read Profiles" ON profiles;
@@ -258,6 +259,7 @@ DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 DROP POLICY IF EXISTS "Read Clients" ON clients;
 DROP POLICY IF EXISTS "Read Star Defs" ON star_definitions;
 DROP POLICY IF EXISTS "Read Star States" ON star_states;
+DROP POLICY IF EXISTS "Read Active Seasons" ON active_seasons;
 DROP POLICY IF EXISTS "Users can view own bandit state" ON bandit_states;
 DROP POLICY IF EXISTS "Users can update own bandit state" ON bandit_states;
 DROP POLICY IF EXISTS "Users can insert own bandit state" ON bandit_states;
@@ -276,6 +278,9 @@ CREATE POLICY "Read Star Defs" ON star_definitions FOR SELECT TO authenticated U
 
 -- Star States: 全員読み取り可能（RPC経由で更新）
 CREATE POLICY "Read Star States" ON star_states FOR SELECT TO authenticated USING (true);
+
+-- Active Seasons: 全員読み取り可能（書き込みはサービスロールのみ）
+CREATE POLICY "Read Active Seasons" ON active_seasons FOR SELECT TO authenticated USING (true);
 
 -- Bandit States: 自分のみ読み書き可能
 CREATE POLICY "Users can view own bandit state" ON bandit_states FOR SELECT TO authenticated USING (auth.uid() = user_id);

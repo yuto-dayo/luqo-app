@@ -249,6 +249,14 @@ export const apiClient = {
       signal: options?.signal,
     });
   },
+  put<T>(path: string, body: unknown, options?: RequestOptions) {
+    return request<T>(path, {
+      method: "PUT",
+      body: JSON.stringify(body),
+      headers: options?.headers,
+      signal: options?.signal,
+    });
+  },
   delete<T>(path: string, options?: RequestOptions) {
     return request<T>(path, {
       method: "DELETE",

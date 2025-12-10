@@ -19,6 +19,8 @@ export type PromptId =
   | "payroll_v2.prompt"
   | "star_audit.prompt"
   | "okr_audit.prompt"
+  | "category_weight_audit.prompt"
+  | "category_audit.prompt"
   | "news.prompt";
 
 /**
