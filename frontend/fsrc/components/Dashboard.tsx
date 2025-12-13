@@ -4,7 +4,7 @@ import { useDynamicTheme } from "../hooks/useDynamicTheme";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { AiChatFab } from "./AiChatFab";
 import { FocusCard } from "./FocusCard";
-import { LuqoSummary } from "./LuqoSummary";
+import { MissionControlCard } from "./MissionControlCard";
 import { TScoreSummary } from "./TScoreSummary";
 import { KpiPanel } from "./KpiPanel";
 import { PaymasterCard } from "./PaymasterCard";
@@ -21,6 +21,10 @@ export const Dashboard: React.FC = () => {
   // ロジックはこれ一行で完結
   const { score, fetchScore, banditData, banditLoading, rawScore, pendingStars, greeting, headlineColor, historyBumpId, refreshBanditData } = useDashboardData();
 
+  // OKR/フェーズ（日付）: フォーカス領域の文脈なので、banditData（OKR定義）から参照する
+  const okrStartAt = banditData?.context?.okr?.startAt;
+  const okrEndAt = banditData?.context?.okr?.endAt;
+
   // テーマ適用などの副作用
   useDynamicTheme(score);
 
@@ -32,8 +36,9 @@ export const Dashboard: React.FC = () => {
   // useDashboardDataにはfetchScoreが含まれているが、呼び出しはしていない。
   // ここで呼び出す必要がある。
   React.useEffect(() => {
-    void fetchScore();
-  }, [month, fetchScore]);
+    // OKRの開始日を基準に「週区切り」でスコアの再計算タイミングを合わせる（現月のみ有効）
+    void fetchScore({ okrStartAt, okrEndAt });
+  }, [month, fetchScore, okrStartAt, okrEndAt]);
 
   return (
     <div className={styles.container}>
@@ -51,31 +56,26 @@ export const Dashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* 1. Hero Section: Focus (Actionable) */}
-      {/* FocusCardは最も重要なので、単独で目立たせる */}
+      {/* 1. Unified Mission Control Section */}
       <div className={styles.heroSection}>
-        <FocusCard 
-          scoreReady={true} 
-          banditData={banditData} 
+        <MissionControlCard
+          banditData={banditData}
+          score={score}
           loading={banditLoading}
+          scoreReady={true}
           onMissionUpdated={refreshBanditData}
         />
+        {/* Guardian Badge: カードの下に配置 */}
+        {score.adjustments && (
+          <div className={styles.guardianBadgeWrapper}>
+            <GuardianBadge delta={score.adjustments.delta} />
+          </div>
+        )}
       </div>
 
-      {/* 2. Stats Section: Metrics (Glanceable) */}
-      {/* スコア系は並列に並べて比較しやすくする */}
+      {/* 3. Stats Section: T-Score (Glanceable) */}
       <h2 className={styles.sectionTitle}>Your Progress</h2>
       <div className={styles.statsGrid}>
-        <div className={styles.cardWrapper}>
-          <LuqoSummary score={score} activeDimension={banditData?.focusDimension as "LU" | "Q" | "O" | undefined} />
-
-          {/* ★ここにバッジを追加 */}
-          {score.adjustments && (
-            <div className={styles.guardianBadgeWrapper}>
-              <GuardianBadge delta={score.adjustments.delta} />
-            </div>
-          )}
-        </div>
         <div className={styles.cardWrapper}>
           <TScoreSummary currentStars={rawScore} pendingStars={pendingStars} />
         </div>
