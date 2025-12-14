@@ -4,7 +4,6 @@ import { Icon } from "./ui/Icon";
 import { updateMission, type BanditSuggestResponse } from "../lib/api";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { useConfirm } from "../contexts/ConfirmDialogContext";
-import { useRetroGameMode } from "../hooks/useRetroGameMode";
 // CSS Modules を使う場合は import styles from './FocusCard.module.css'; ですが、
 // ここでは既存の global.css 変数を style 属性で直接活用する形（移行期の実装）で提示します。
 
@@ -41,19 +40,11 @@ export const FocusCard: React.FC<Props> = ({ banditData, loading, scoreReady, on
   const theme = useTheme();
   const { showSnackbar } = useSnackbar();
   const { confirm } = useConfirm();
-  const isRetroGameMode = useRetroGameMode();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editAction, setEditAction] = useState("");
   const [editHint, setEditHint] = useState("");
   const [editChangeReason, setEditChangeReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const getDaysLeft = (dateStr?: string) => {
-    if (!dateStr) return null;
-    const end = new Date(dateStr).getTime();
-    const diff = end - Date.now();
-    return Math.ceil(diff / (1000 * 60 * 60 * 24));
-  };
 
   // 編集モーダルを開く
   const handleOpenEditModal = () => {
@@ -153,7 +144,6 @@ export const FocusCard: React.FC<Props> = ({ banditData, loading, scoreReady, on
   const focusDimension = banditData.focusDimension || "Q";
   const kpi = KPI_THEME_VARS[focusDimension];
   const action = banditData.suggestion.action;
-  const missionDays = getDaysLeft(banditData?.suggestion?.missionEndAt);
 
   // テーマに応じた動的な角丸 (Shape System)
   // 'cut' は鋭角的で技術的な印象、それ以外は親しみやすい丸み
@@ -203,58 +193,9 @@ export const FocusCard: React.FC<Props> = ({ banditData, loading, scoreReady, on
         `}</style>
       </div>
 
-      {/* Header Area */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative", zIndex: 1 }}>
-
-        {/* Dimension Indicator */}
-        <div style={{
-          width: "clamp(40px, 8vw, 48px)",
-          height: "clamp(40px, 8vw, 48px)",
-          borderRadius: "12px", // Medium Shape
-          background: kpi.color,
-          color: "#ffffff", // アイコンは白抜き
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.15)" // 浮遊感
-        }}>
-          <Icon name={kpi.icon} size={28} />
-        </div>
-
-        {/* AI Status Badge */}
-        <div style={{ display: "flex", gap: "8px" }}>
-          {missionDays !== null && (
-            <div style={{
-              padding: "6px 12px",
-              borderRadius: isRetroGameMode ? "0" : "99px",
-              background: isRetroGameMode ? "#0a0a0f" : "rgba(255,255,255,0.9)",
-              color: isRetroGameMode ? "#00ff88" : (missionDays <= 3 ? "#ef4444" : "#64748b"),
-              fontSize: "12px",
-              fontWeight: 700,
-              border: isRetroGameMode ? "1px solid #00ffff" : "none",
-              boxShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 255, 0.3)" : "0 2px 4px rgba(0,0,0,0.05)",
-              display: "flex",
-              alignItems: "center",
-            }}>
-              残り {missionDays} 日
-            </div>
-          )}
-          <div style={{
-            padding: "6px 12px",
-            borderRadius: isRetroGameMode ? "0" : "99px",
-            background: isRetroGameMode ? "#0a0a0f" : "rgba(255,255,255,0.6)",
-            backdropFilter: isRetroGameMode ? "none" : "blur(4px)",
-            border: isRetroGameMode ? "1px solid #00ffff" : "1px solid rgba(0,0,0,0.05)",
-            boxShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 255, 0.3)" : "none",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px"
-          }}>
-            <Icon name="ai" size={16} color={kpi.color} />
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: kpi.color }} />
-          </div>
-        </div>
-      </div>
+      {/* ヘッダーの識別バッジ（左上の色付きアイコン枠）は削除
+          - カード全体の色味で十分に文脈が伝わる
+          - 追加の視覚ノイズを減らす */}
 
       {/* Main Content: Hero Typography */}
       <div style={{ position: "relative", zIndex: 1 }}>

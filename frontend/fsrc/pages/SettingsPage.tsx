@@ -38,25 +38,25 @@ const SettingsItem = ({
 );
 
 // セクションヘッダー
-const SettingsSectionHeader = ({ 
-  title, 
-  onClick, 
-  isExpanded 
-}: { 
-  title: string; 
+const SettingsSectionHeader = ({
+  title,
+  onClick,
+  isExpanded
+}: {
+  title: string;
   onClick?: () => void;
   isExpanded?: boolean;
 }) => (
-  <div 
+  <div
     onClick={onClick}
     className={styles.sectionHeader}
     style={{ cursor: onClick ? "pointer" : "default" }}
   >
     <span>{title}</span>
     {onClick && (
-      <Icon 
-        name={isExpanded ? "chevronUp" : "chevronDown"} 
-        size={16} 
+      <Icon
+        name={isExpanded ? "chevronUp" : "chevronDown"}
+        size={16}
         color="var(--color-seed)"
       />
     )}
@@ -90,7 +90,7 @@ const ExpressiveInput = ({
         className={styles.inputField}
       />
       <div className={styles.inputAction}>
-        <Icon name="pen" size={18} color="var(--color-seed)" style={{ opacity: 0.7 }} />
+        <Icon name="edit" size={18} color="var(--color-seed)" style={{ opacity: 0.7 }} />
         {action}
       </div>
     </div>
@@ -103,9 +103,26 @@ const SettingsPage: React.FC = () => {
   const [newPassword, setNewPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loadingProfile, setLoadingProfile] = useState(false);
-  
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   const { showSnackbar } = useSnackbar();
+
+  // 現在の月を取得（YYYY-MM形式）
+  const getCurrentMonth = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  };
+
+  // localStorageをクリアしてリロード
+  const handleClearLocalStorage = () => {
+    const currentMonth = getCurrentMonth();
+    localStorage.removeItem("luqo.banditMission.v1");
+    localStorage.removeItem(`luqo.score.v1.${currentMonth}`);
+    showSnackbar("キャッシュをクリアしました。ページをリロードします...", "success");
+    setTimeout(() => {
+      location.reload();
+    }, 500);
+  };
 
   const loadProfile = async () => {
     try {
@@ -263,6 +280,24 @@ const SettingsPage: React.FC = () => {
           action={<span className={styles.settingsItemAction}>▶</span>}
         />
       </div>
+
+      {/* 高度な設定（デバッグ・開発者向け） */}
+      <SettingsSectionHeader
+        title="高度な設定"
+        onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+        isExpanded={isAdvancedOpen}
+      />
+      {isAdvancedOpen && (
+        <div className={styles.cardContainer}>
+          <SettingsItem
+            icon="info"
+            title="キャッシュをクリア"
+            subtitle="バンディットミッションとスコアのキャッシュを削除してリロード"
+            onClick={handleClearLocalStorage}
+            destructive={false}
+          />
+        </div>
+      )}
 
       {/* その他 */}
       <div>

@@ -1,59 +1,277 @@
-import type { UserBanditState, BanditArmState } from "../types/banditState";
+import type {
+    UserBanditState,
+    BanditArmId,
+    BanditArmState,
+    ContextBoosts,
+    createDefaultBanditState,
+    migrateBanditState
+} from "../types/banditState";
 
-type ArmType = "T_SCORE" | "Q_SCORE" | "LU_SCORE" | "O_SCORE" | "PSYCH_SAFETY";
+// ユーザーモード
+export type UserMode = "EARN" | "LEARN" | "TEAM";
 
-interface Arm {
-    id: string;
-    type: ArmType;
+// アーム情報（UI表示用）
+interface ArmInfo {
+    id: BanditArmId;
+    dimension: "LU" | "Q" | "O";
     focus: string;
     desc: string;
 }
+
+// 選択結果
+export interface ArmSelectionResult {
+    armId: BanditArmId;
+    armInfo: ArmInfo;
+    sampleValue: number;      // Beta分布からのサンプル値
+    ucbBonus: number;         // 不確実性ボーナス
+    contextBoost: number;     // コンテキストブースト
+    finalScore: number;       // 最終スコア
+}
+
+// 探索重み (0 = 活用のみ, 1 = 高い探索)
+const EXPLORATION_WEIGHT = 0.5;
 
 // Default weak prior
 const DEFAULT_ALPHA = 2;
 const DEFAULT_BETA = 2;
 
 export class LuqoBanditBrain {
-    private arms: Arm[] = [
+    private armInfos: ArmInfo[] = [
         {
-            id: "Arm_Speed",
-            type: "T_SCORE",
-            focus: "作業速度",
-            desc: "300㎡/日などのスピード項目",
+            id: "Arm_LU",
+            dimension: "LU",
+            focus: "学習・共有",
+            desc: "ナレッジ共有、他者支援、対話・関係性構築",
         },
         {
-            id: "Arm_Quality",
-            type: "T_SCORE",
-            focus: "品質精度",
-            desc: "仕上がり・クレームゼロ",
+            id: "Arm_Q",
+            dimension: "Q",
+            focus: "品質・効率",
+            desc: "作業速度、品質精度、仕上がり向上",
         },
         {
-            id: "Arm_Support",
-            type: "Q_SCORE",
-            focus: "他者支援",
-            desc: "後輩への指導・ヘルプ",
-        },
-        {
-            id: "Arm_Share",
-            type: "LU_SCORE",
-            focus: "ナレッジ共有",
-            desc: "気づきの言語化・ログ共有",
-        },
-        {
-            id: "Arm_Innovate",
-            type: "O_SCORE",
-            focus: "改善提案",
-            desc: "新しいツールの導入・工程短縮",
-        },
-        {
-            id: "Arm_Dialog",
-            type: "PSYCH_SAFETY",
-            focus: "対話・関係性",
-            desc: "360度フィードバック・傾聴",
+            id: "Arm_O",
+            dimension: "O",
+            focus: "改善・革新",
+            desc: "改善提案、新しいツール導入、工程短縮",
         },
     ];
 
     constructor() { }
+
+    /**
+     * アームIDから対応する次元を取得
+     */
+    public getDimensionForArm(armId: BanditArmId): "LU" | "Q" | "O" {
+        const info = this.armInfos.find(a => a.id === armId);
+        return info?.dimension ?? "Q";
+    }
+
+    /**
+     * 次元からアームIDを取得
+     */
+    public getArmForDimension(dimension: "LU" | "Q" | "O"): BanditArmId {
+        return `Arm_${dimension}` as BanditArmId;
+    }
+
+    /**
+     * UCB-Adjusted Thompson Sampling でアームを選択
+     * @param mode ユーザーの現在のモード（コンテキスト）
+     * @param state ユーザーの永続化されたBandit状態
+     * @param seasonTargetDimension シーズンのターゲット次元（追加ブースト用）
+     */
+    public selectArm(
+        mode: UserMode,
+        state: UserBanditState,
+        seasonTargetDimension?: "LU" | "Q" | "O"
+    ): ArmSelectionResult {
+        const results: ArmSelectionResult[] = [];
+
+        for (const armInfo of this.armInfos) {
+            const armState = state.arms[armInfo.id] || {
+                alpha: DEFAULT_ALPHA,
+                beta: DEFAULT_BETA,
+                trials: 0,
+            };
+
+            // 1. Thompson Sampling: Beta分布からサンプル
+            const sampleValue = this.sampleBeta(armState.alpha, armState.beta);
+
+            // 2. UCB bonus: 不確実性に基づく探索ボーナス
+            // UCB1公式: sqrt(2 * ln(n) / n_i)
+            const totalTrials = state.totalTrials || 1;
+            const armTrials = armState.trials || 1;
+            const ucbBonus = EXPLORATION_WEIGHT * Math.sqrt(
+                2 * Math.log(totalTrials + 1) / (armTrials + 1)
+            );
+
+            // 3. コンテキストブースト
+            let contextBoost = 0;
+            const modeBoosts = state.contextBoosts?.[mode];
+            if (modeBoosts) {
+                contextBoost = modeBoosts[armInfo.dimension] || 0;
+            }
+
+            // 4. シーズンターゲットブースト（組織目標との整合性）
+            let seasonBoost = 0;
+            if (seasonTargetDimension === armInfo.dimension) {
+                seasonBoost = 0.2;
+            }
+
+            // 最終スコア
+            const finalScore = sampleValue + ucbBonus + contextBoost + seasonBoost;
+
+            results.push({
+                armId: armInfo.id,
+                armInfo,
+                sampleValue,
+                ucbBonus,
+                contextBoost: contextBoost + seasonBoost,
+                finalScore,
+            });
+        }
+
+        // 最高スコアのアームを選択
+        results.sort((a, b) => b.finalScore - a.finalScore);
+        return results[0];
+    }
+
+    /**
+     * 複数アームを選択（上位N件）
+     */
+    public selectArms(
+        mode: UserMode,
+        state: UserBanditState,
+        count: number = 3,
+        seasonTargetDimension?: "LU" | "Q" | "O"
+    ): ArmSelectionResult[] {
+        const results: ArmSelectionResult[] = [];
+
+        for (const armInfo of this.armInfos) {
+            const armState = state.arms[armInfo.id] || {
+                alpha: DEFAULT_ALPHA,
+                beta: DEFAULT_BETA,
+                trials: 0,
+            };
+
+            const sampleValue = this.sampleBeta(armState.alpha, armState.beta);
+            const totalTrials = state.totalTrials || 1;
+            const armTrials = armState.trials || 1;
+            const ucbBonus = EXPLORATION_WEIGHT * Math.sqrt(
+                2 * Math.log(totalTrials + 1) / (armTrials + 1)
+            );
+
+            let contextBoost = 0;
+            const modeBoosts = state.contextBoosts?.[mode];
+            if (modeBoosts) {
+                contextBoost = modeBoosts[armInfo.dimension] || 0;
+            }
+
+            let seasonBoost = 0;
+            if (seasonTargetDimension === armInfo.dimension) {
+                seasonBoost = 0.2;
+            }
+
+            const finalScore = sampleValue + ucbBonus + contextBoost + seasonBoost;
+
+            results.push({
+                armId: armInfo.id,
+                armInfo,
+                sampleValue,
+                ucbBonus,
+                contextBoost: contextBoost + seasonBoost,
+                finalScore,
+            });
+        }
+
+        results.sort((a, b) => b.finalScore - a.finalScore);
+        return results.slice(0, count);
+    }
+
+    /**
+     * 報酬に基づいて状態を更新し、新しい状態オブジェクトを返す
+     * @param currentState 現在の状態
+     * @param armId 選択されたアームID
+     * @param rawScore 生スコア (0-100)
+     */
+    public updateState(
+        currentState: UserBanditState,
+        armId: BanditArmId,
+        rawScore: number
+    ): UserBanditState {
+        // シグモイド変換で報酬を計算（中央付近の差を強調）
+        const reward = this.sigmoidReward(rawScore);
+
+        const newState: UserBanditState = {
+            ...currentState,
+            arms: { ...currentState.arms },
+            totalTrials: (currentState.totalTrials || 0) + 1,
+            updatedAt: new Date().toISOString(),
+        };
+
+        const currentArmState = newState.arms[armId] || {
+            armId,
+            alpha: DEFAULT_ALPHA,
+            beta: DEFAULT_BETA,
+            trials: 0,
+            updatedAt: "",
+        };
+
+        // Bayesian Update:
+        // newAlpha = oldAlpha + reward
+        // newBeta = oldBeta + (1 - reward)
+        newState.arms[armId] = {
+            ...currentArmState,
+            alpha: currentArmState.alpha + reward,
+            beta: currentArmState.beta + (1 - reward),
+            trials: (currentArmState.trials || 0) + 1,
+            updatedAt: new Date().toISOString(),
+        };
+
+        return newState;
+    }
+
+    /**
+     * コンテキストブーストを学習・更新
+     * 成功したアーム×モードの組み合わせのブーストを強化
+     */
+    public updateContextBoost(
+        currentState: UserBanditState,
+        mode: UserMode,
+        armId: BanditArmId,
+        success: boolean
+    ): UserBanditState {
+        const dimension = this.getDimensionForArm(armId);
+        const learningRate = 0.1;
+
+        const newState: UserBanditState = {
+            ...currentState,
+            contextBoosts: { ...currentState.contextBoosts },
+        };
+
+        const currentBoost = newState.contextBoosts[mode]?.[dimension] || 0;
+        const delta = success ? learningRate : -learningRate * 0.5;
+        const newBoost = Math.max(-0.3, Math.min(0.5, currentBoost + delta));
+
+        newState.contextBoosts[mode] = {
+            ...newState.contextBoosts[mode],
+            [dimension]: newBoost,
+        };
+
+        return newState;
+    }
+
+    /**
+     * シグモイド報酬変換
+     * スコア(0-100)を報酬(0-1)に変換し、中央付近の差を強調
+     * @param score 生スコア (0-100)
+     */
+    public sigmoidReward(score: number): number {
+        // σ(0.1 * (score - 50)) で50を中心に変換
+        // score=0 -> ~0.007, score=50 -> 0.5, score=100 -> ~0.993
+        const normalized = 1 / (1 + Math.exp(-0.1 * (score - 50)));
+        return Math.max(0, Math.min(1, normalized));
+    }
 
     /**
      * ログ数に応じたポテンシャル範囲（不確実性）を計算
@@ -70,100 +288,16 @@ export class LuqoBanditBrain {
     }
 
     /**
-     * ユーザーモードに応じたアーム選択（トンプソンサンプリング）
-     * @param mode ユーザーの現在のモード
-     * @param state ユーザーの永続化されたBandit状態 (Optional)
-     */
-    public selectArms(mode: "EARN" | "LEARN" | "TEAM", state?: UserBanditState): Arm[] {
-        const boosts: Record<string, number> = {};
-        for (const arm of this.arms) {
-            boosts[arm.id] = 0;
-        }
-
-        // Mapping Logic
-        if (mode === "EARN") {
-            // quality / speed
-            boosts["Arm_Speed"] += 0.5;
-            boosts["Arm_Quality"] += 0.3;
-        } else if (mode === "TEAM") {
-            // innovation -> mapped to TEAM/Contribution logic for safety
-            boosts["Arm_Support"] += 0.5;
-            boosts["Arm_Dialog"] += 0.4;
-        } else if (mode === "LEARN") {
-            // growth
-            boosts["Arm_Innovate"] += 0.5;
-            boosts["Arm_Share"] += 0.3;
-        }
-
-        const sampled: Array<{ arm: Arm; val: number }> = [];
-
-        for (const arm of this.arms) {
-            // Get alpha/beta from state or default
-            let alpha = DEFAULT_ALPHA;
-            let beta = DEFAULT_BETA;
-
-            if (state && state[arm.id]) {
-                alpha = state[arm.id].alpha;
-                beta = state[arm.id].beta;
-            }
-
-            // sample = beta(alpha, beta) + boost
-            const baseVal = this.sampleBeta(alpha, beta);
-            const val = baseVal + (boosts[arm.id] ?? 0);
-            sampled.push({ arm, val });
-        }
-
-        // Return top 3
-        sampled.sort((a, b) => b.val - a.val);
-        return sampled.slice(0, 3).map((s) => s.arm);
-    }
-
-    /**
-     * 報酬に基づいて状態を更新し、新しい状態オブジェクトを返す
-     * @param currentState 現在の状態
-     * @param armId 選択されたアームID
-     * @param reward 報酬 (0.0 - 1.0)
-     */
-    public updateState(
-        currentState: UserBanditState,
-        armId: string,
-        reward: number
-    ): UserBanditState {
-        const newState = { ...currentState };
-        const currentArmState = newState[armId] || {
-            armId,
-            alpha: DEFAULT_ALPHA,
-            beta: DEFAULT_BETA,
-            updatedAt: "",
-        };
-
-        // Update Logic:
-        // newAlpha = oldAlpha + reward
-        // newBeta = oldBeta + (1 - reward)
-        const newAlpha = currentArmState.alpha + reward;
-        const newBeta = currentArmState.beta + (1 - reward);
-
-        newState[armId] = {
-            ...currentArmState,
-            alpha: newAlpha,
-            beta: newBeta,
-            updatedAt: new Date().toISOString(),
-        };
-
-        return newState;
-    }
-
-    /**
      * 選択されたアームに基づいてシステムプロンプトを生成
      */
-    public generateSystemPrompt(selectedArm: Arm): string {
+    public generateSystemPrompt(selectedArm: ArmSelectionResult): string {
         return `
 あなたは建設現場の職人評価AI「LUQO」です。
 ユーザーの最近の活動ログを分析し、以下の「注力テーマ」に基づいたフィードバックを行ってください。
 
 【注力テーマ】
-・項目: ${selectedArm.focus} (${selectedArm.type})
-・内容: ${selectedArm.desc}
+・項目: ${selectedArm.armInfo.focus} (${selectedArm.armInfo.dimension})
+・内容: ${selectedArm.armInfo.desc}
 
 ユーザーがこのテーマに沿った行動を増やせるよう、具体的かつ前向きなアドバイスを短く（100文字以内）提示してください。
 `.trim();
@@ -222,6 +356,7 @@ export class LuqoBanditBrain {
 
 // ------------------------------------------------------------------
 // Personal Bandit Logic (Merged from banditPersonal.ts)
+// LU/Q/O の重み計算（別用途、残存）
 // ------------------------------------------------------------------
 
 export type PersonalHistoryRow = {
@@ -242,12 +377,6 @@ export type BanditWeightResult = {
 function mean(xs: number[]): number {
     if (!xs.length) return 0;
     return xs.reduce((s, v) => s + v, 0) / xs.length;
-}
-
-function variance(xs: number[]): number {
-    if (xs.length < 2) return 0;
-    const m = mean(xs);
-    return xs.reduce((s, v) => s + (v - m) * (v - m), 0) / (xs.length - 1);
 }
 
 function pearson(xs: number[], ys: number[]): number {
@@ -325,7 +454,7 @@ export function computeBanditLuqoWeights(
     const roomQ = clamp01(1 - mean(xsQ));
     const roomO = clamp01(1 - mean(xsO));
 
-    // “育て得度合い” = 相関 × 伸びしろ
+    // "育て得度合い" = 相関 × 伸びしろ
     const vLU = corrLU * roomLU;
     const vQ = corrQ * roomQ;
     const vO = corrO * roomO;

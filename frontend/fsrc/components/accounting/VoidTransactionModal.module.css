@@ -1,0 +1,158 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal {
+  background-color: var(--color-surface, #fff);
+  border-radius: 24px;
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.title {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-main, #1e293b);
+}
+
+.itemInfo {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--color-surface-secondary, #f1f5f9);
+  border-radius: 12px;
+}
+
+.itemTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #475569);
+  margin-bottom: 4px;
+}
+
+.itemDetails {
+  font-size: 12px;
+  color: var(--color-text-muted, #64748b);
+}
+
+.label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main, #1e293b);
+}
+
+.required {
+  color: var(--color-error, #ef4444);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 20px;
+  outline: none;
+}
+
+.textarea:focus {
+  border-color: var(--color-primary, #2563eb);
+}
+
+.note {
+  font-size: 12px;
+  color: var(--color-text-muted, #64748b);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.buttonGroup {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cancelButton {
+  padding: 10px 24px;
+  border-radius: 100px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #64748b);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.cancelButton:hover:not(:disabled) {
+  color: var(--color-text-main, #1e293b);
+}
+
+.cancelButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirmButton {
+  padding: 10px 24px;
+  border-radius: 100px;
+  border: none;
+  background: var(--color-error, #ef4444);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.confirmButton:hover:not(:disabled) {
+  background: var(--color-error-dark, #dc2626);
+}
+
+.confirmButton:disabled {
+  background: var(--color-border, #cbd5e1);
+  cursor: not-allowed;
+}
+
+/* Retro Game Mode */
+:global(.retro-game) .overlay {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+:global(.retro-game) .modal {
+  border: 3px solid var(--color-text-main, #2d2d2d);
+  box-shadow: 4px 4px 0px var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+}
+
+:global(.retro-game) .textarea {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+}
+
+:global(.retro-game) .confirmButton {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+}
+
+
+
+
+
+
+
+

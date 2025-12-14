@@ -5,6 +5,8 @@ type Props = {
   size?: number;
   color?: string;
   strokeWidth?: number;
+  style?: React.CSSProperties;
+  className?: string;
 };
 
 const paths: Record<string, JSX.Element> = {
@@ -193,10 +195,21 @@ const paths: Record<string, JSX.Element> = {
   ),
 };
 
-export const Icon: React.FC<Props> = ({ name, size = 24, color = "currentColor", strokeWidth = 2 }) => {
+export const Icon: React.FC<Props> = ({ name, size = 24, color = "currentColor", strokeWidth = 2, style, className }) => {
   const content = paths[name] ?? <circle cx="12" cy="12" r="9" />;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={style}
+      className={className}
+    >
       {content}
     </svg>
   );

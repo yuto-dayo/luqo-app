@@ -27,6 +27,13 @@ const isNonEmptyString = (value: unknown): value is string =>
  * レシート/請求書 解析 (AI Analysis)
  */
 accountingRouter.post("/analyze", async (req, res) => {
+  const r = req as AuthedRequest;
+  const userId = r.userId;
+
+  if (!userId) {
+    return res.status(401).json({ error: "認証が必要です" });
+  }
+
   try {
     const { fileBase64, mode } = req.body;
     const inputBase64 = fileBase64 || req.body.imageBase64;
@@ -35,29 +42,64 @@ accountingRouter.post("/analyze", async (req, res) => {
       return res.status(400).json({ error: "ファイルデータが必要です" });
     }
 
-    const isSales = mode === "sales";
-    const promptId = isSales ? "sales_audit.prompt" : "expense_audit.prompt";
-
-    // MIMEタイプの簡易判定
+    // Base64データの形式検証
     const match = inputBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
-    const mimeType = match ? match[1] : "image/jpeg";
+    const mimeType = match ? match[1] : null;
     const base64Data = match ? match[2] : inputBase64;
 
+    // MIMEタイプの検証（ホワイトリスト方式）
+    const ALLOWED_MIME_TYPES = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "application/pdf",
+    ];
+
+    if (!mimeType || !ALLOWED_MIME_TYPES.includes(mimeType)) {
+      return res.status(400).json({
+        error: "サポートされていないファイル形式です",
+      });
+    }
+
+    // Base64データの形式検証
+    if (!/^[A-Za-z0-9+/=]+$/.test(base64Data) || base64Data.length === 0) {
+      return res.status(400).json({
+        error: "無効なBase64データです",
+      });
+    }
+
+    // ファイルサイズの検証（10MB制限）
+    // Base64は元データの約1.33倍のサイズになるため、逆算して検証
+    const base64Size = base64Data.length;
+    const estimatedOriginalSize = (base64Size * 3) / 4;
+    const maxSize = 10 * 1024 * 1024; // 10MB
+
+    if (estimatedOriginalSize > maxSize) {
+      return res.status(400).json({
+        error: "ファイルサイズが大きすぎます（10MB以下にしてください）",
+      });
+    }
+
+    const isSales = mode === "sales";
+    const promptId = "accounting_audit.prompt";
+
     const systemPrompt = await loadPromptById(promptId);
-    
+
     // コストを考慮してGPT-4oを優先使用
     // 優先順位: OpenAI GPT-4o → Gemini 3 Pro → Gemini 2.5 Flash
     let analysis: any;
     let usedProvider = "gpt-4o";
-    
+
     // OpenAI GPT-4oを優先（コスト効率と精度のバランス）
     try {
       const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
-          { 
-            role: "system", 
-            content: systemPrompt 
+          {
+            role: "system",
+            content: systemPrompt
           },
           {
             role: "user",
@@ -70,7 +112,7 @@ accountingRouter.post("/analyze", async (req, res) => {
               },
               {
                 type: "text" as const,
-                text: "この画像を解析して、JSON形式で結果を返してください。"
+                text: `この画像を解析して、JSON形式で結果を返してください。処理タイプ: ${isSales ? "sales" : "expense"}`
               }
             ]
           }
@@ -87,13 +129,13 @@ accountingRouter.post("/analyze", async (req, res) => {
     } catch (openaiError: any) {
       console.warn("GPT-4o解析失敗、Geminiにフォールバック:", openaiError?.message);
       usedProvider = "gemini";
-      
+
       // Geminiモデルの優先順位（最新・高精度 → コスト効率）
       const geminiModels = [
         { name: "gemini-3-pro", label: "Gemini 3 Pro" }, // 世界最高のマルチモーダル理解
         { name: "gemini-2.5-flash", label: "Gemini 2.5 Flash" }, // 低レイテンシー・コスト効率
       ];
-      
+
       let geminiSuccess = false;
       for (const geminiModelInfo of geminiModels) {
         try {
@@ -105,7 +147,7 @@ accountingRouter.post("/analyze", async (req, res) => {
               temperature: 0.7,
             },
           });
-          
+
           // 画像データをGemini形式に変換
           const imagePart = {
             inlineData: {
@@ -113,15 +155,15 @@ accountingRouter.post("/analyze", async (req, res) => {
               mimeType: mimeType,
             },
           };
-          
+
           const prompt = "この画像を解析して、JSON形式で結果を返してください。";
           const result = await geminiModel.generateContent([prompt, imagePart]);
           const responseText = result.response.text();
-          
+
           if (!responseText) {
             throw new Error("Empty response from Gemini");
           }
-          
+
           analysis = JSON.parse(responseText);
           usedProvider = geminiModelInfo.name;
           geminiSuccess = true;
@@ -132,63 +174,77 @@ accountingRouter.post("/analyze", async (req, res) => {
           continue;
         }
       }
-      
+
       if (!geminiSuccess) {
         // すべてのモデルが失敗した場合
         throw new Error("すべてのAIモデルで解析に失敗しました");
       }
     }
-    
-    // 使用したプロバイダーをログに記録（デバッグ用）
-    console.log(`[Receipt Analysis] Used provider: ${usedProvider}, mode: ${mode}`);
+
+    // 使用したプロバイダーをログに記録（監査用：ユーザーIDを含める）
+    console.log(
+      `[Receipt Analysis] User: ${userId}, mode: ${mode}, provider: ${usedProvider}`
+    );
 
     return res.json({ ok: true, analysis, mode, provider: usedProvider });
   } catch (err: any) {
-    console.error("Analysis error:", err);
-    
-    // より詳細なエラーメッセージを返す
+    // エラーログに詳細を記録（サーバー側のみ：ユーザーIDを含める）
     const errorMessage = err?.message || err?.toString() || "Unknown error";
     const errorCode = err?.code || err?.status || "UNKNOWN_ERROR";
-    const isModelError = errorMessage.toLowerCase().includes("model") || 
-                        errorMessage.toLowerCase().includes("invalid") ||
-                        errorMessage.toLowerCase().includes("not found");
-    const isApiKeyError = errorMessage.toLowerCase().includes("api key") || 
-                         errorMessage.toLowerCase().includes("authentication") ||
-                         errorMessage.toLowerCase().includes("unauthorized");
-    const isRateLimitError = errorMessage.toLowerCase().includes("rate limit") ||
-                            errorCode === "rate_limit_exceeded";
-    
-    // エラータイプに応じたメッセージを返す
+    const isDevelopment = process.env.NODE_ENV === "development";
+
+    console.error("Analysis error:", {
+      error: errorMessage,
+      code: errorCode,
+      userId: userId,
+      timestamp: new Date().toISOString(),
+      stack: isDevelopment ? err?.stack : undefined,
+    });
+
+    // エラータイプの判定
+    const isModelError =
+      errorMessage.toLowerCase().includes("model") ||
+      errorMessage.toLowerCase().includes("invalid") ||
+      errorMessage.toLowerCase().includes("not found");
+    const isApiKeyError =
+      errorMessage.toLowerCase().includes("api key") ||
+      errorMessage.toLowerCase().includes("authentication") ||
+      errorMessage.toLowerCase().includes("unauthorized");
+    const isRateLimitError =
+      errorMessage.toLowerCase().includes("rate limit") ||
+      errorCode === "rate_limit_exceeded";
+
+    // エラータイプに応じたメッセージを返す（本番環境では詳細を返さない）
     if (isModelError) {
-      return res.status(500).json({ 
+      return res.status(500).json({
         ok: false,
         error: "AIモデルの設定エラーが発生しました。利用可能なモデルを確認してください。",
         code: "MODEL_ERROR",
-        details: process.env.NODE_ENV === "development" ? errorMessage : undefined
+        details: isDevelopment ? errorMessage : undefined,
       });
     }
     if (isApiKeyError) {
-      return res.status(500).json({ 
+      return res.status(500).json({
         ok: false,
         error: "API認証エラーが発生しました。管理者に連絡してください。",
         code: "AUTH_ERROR",
-        details: process.env.NODE_ENV === "development" ? errorMessage : undefined
+        details: isDevelopment ? errorMessage : undefined,
       });
     }
     if (isRateLimitError) {
-      return res.status(429).json({ 
+      return res.status(429).json({
         ok: false,
         error: "APIの利用制限に達しました。しばらく待ってから再度お試しください。",
         code: "RATE_LIMIT",
-        details: process.env.NODE_ENV === "development" ? errorMessage : undefined
+        details: isDevelopment ? errorMessage : undefined,
       });
     }
-    
-    return res.status(500).json({ 
+
+    return res.status(500).json({
       ok: false,
       error: "解析に失敗しました。画像またはPDFを確認してください。",
       code: "PARSE_ERROR",
-      details: process.env.NODE_ENV === "development" ? errorMessage : undefined
+      details: isDevelopment ? errorMessage : undefined,
     });
   }
 });
@@ -324,7 +380,7 @@ accountingRouter.post("/void", async (req, res) => {
 accountingRouter.post("/sales", async (req, res) => {
   const r = req as AuthedRequest;
   try {
-    const { 
+    const {
       amount, clientName, date, inputType, description, evidenceImage, siteName,
       workCategoryId, workCategoryLabel // 工事カテゴリ情報
     } = req.body || {};
@@ -355,7 +411,7 @@ accountingRouter.post("/sales", async (req, res) => {
     };
 
     const now = new Date().toISOString();
-    
+
     // テキストにカテゴリ情報を含める（履歴表示用）
     const categoryText = workCategoryLabel ? ` [${workCategoryLabel}]` : "";
 
@@ -523,8 +579,8 @@ accountingRouter.get("/dashboard", async (_req, res) => {
 
     // エラーチェック（接続タイムアウトエラーの詳細ログ）
     if (statsRes.error) {
-      const isTimeout = statsRes.error.message?.includes("timeout") || 
-                       statsRes.error.message?.includes("fetch failed");
+      const isTimeout = statsRes.error.message?.includes("timeout") ||
+        statsRes.error.message?.includes("fetch failed");
       if (isTimeout) {
         console.error("Dashboard: get_accounting_stats timeout", {
           error: statsRes.error.message,
@@ -534,8 +590,8 @@ accountingRouter.get("/dashboard", async (_req, res) => {
       throw statsRes.error;
     }
     if (rankingRes.error) {
-      const isTimeout = rankingRes.error.message?.includes("timeout") || 
-                       rankingRes.error.message?.includes("fetch failed");
+      const isTimeout = rankingRes.error.message?.includes("timeout") ||
+        rankingRes.error.message?.includes("fetch failed");
       if (isTimeout) {
         console.error("Dashboard: get_ops_ranking timeout", {
           error: rankingRes.error.message,
@@ -545,8 +601,8 @@ accountingRouter.get("/dashboard", async (_req, res) => {
       throw rankingRes.error;
     }
     if (historyRes.error) {
-      const isTimeout = historyRes.error.message?.includes("timeout") || 
-                       historyRes.error.message?.includes("fetch failed");
+      const isTimeout = historyRes.error.message?.includes("timeout") ||
+        historyRes.error.message?.includes("fetch failed");
       if (isTimeout) {
         console.error("Dashboard: events query timeout", {
           error: historyRes.error.message,
@@ -608,25 +664,25 @@ accountingRouter.get("/dashboard", async (_req, res) => {
 
   } catch (err: any) {
     // 接続タイムアウトエラーの特別な処理
-    const isTimeoutError = 
+    const isTimeoutError =
       err?.message?.includes("timeout") ||
       err?.message?.includes("fetch failed") ||
       err?.code === "UND_ERR_CONNECT_TIMEOUT" ||
       err?.error?.message?.includes("timeout") ||
       err?.error?.message?.includes("fetch failed");
-    
+
     if (isTimeoutError) {
       console.error("Dashboard fetch error: Supabase connection timeout", {
         message: err?.message || err?.error?.message,
         code: err?.code || err?.error?.code,
         url: process.env.SUPABASE_URL,
       });
-      return res.status(503).json({ 
+      return res.status(503).json({
         error: "サービスが一時的に利用できません。しばらくしてから再度お試しください。",
         type: "ConnectionTimeout"
       });
     }
-    
+
     console.error("Dashboard fetch error:", err);
     return res.status(500).json({ error: "ダッシュボードの取得に失敗しました" });
   }
@@ -641,7 +697,7 @@ accountingRouter.get("/monthly-profit", async (_req, res) => {
   try {
     const now = new Date();
     const months: Array<{ month: string; profit: number; sales: number; expenses: number }> = [];
-    
+
     // 過去6ヶ月分のデータを取得
     for (let i = 5; i >= 0; i--) {
       const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -673,12 +729,12 @@ accountingRouter.get("/monthly-profit", async (_req, res) => {
     // 予測計算（簡単な移動平均）
     const profits = months.map(m => m.profit).filter(p => p > 0);
     let predictedProfit = 0;
-    
+
     if (profits.length > 0) {
       // 直近3ヶ月の平均
       const recentMonths = profits.slice(-3);
       const avg = recentMonths.reduce((sum, p) => sum + p, 0) / recentMonths.length;
-      
+
       // トレンドを考慮（直近2ヶ月の変化率）
       if (profits.length >= 2) {
         const lastTwo = profits.slice(-2);
@@ -786,7 +842,7 @@ accountingRouter.get("/invoice", async (req, res) => {
       const payload = ev.payload as SalePayload;
       const amount = Number(payload.amount) || 0; // 税抜金額
       const tax = Number(payload.tax) || 0;
-      
+
       // 消費税がある場合は10%対象、ない場合は対象外
       if (tax > 0) {
         taxableAmount += amount;
@@ -808,19 +864,19 @@ accountingRouter.get("/invoice", async (req, res) => {
         month: "numeric",
         day: "numeric",
       });
-      
+
       // 現場名と説明を分離
       // 1. payload.siteName があればそれを優先
       // 2. payload.description から日付パターン（例: "12/1"）を除去して現場名として使用
       // 3. それでも取得できない場合は undefined
       let siteName: string | undefined = payload.siteName;
       let description: string = "工事代金";
-      
+
       if (!siteName && payload.description) {
         // description から日付パターン（"12/1" や "1/15" など）を除去
         const datePattern = /^\d{1,2}\/\d{1,2}\s*/;
         const cleanedDescription = payload.description.replace(datePattern, "").trim();
-        
+
         if (cleanedDescription.length > 0) {
           // 日付を除去した後に文字が残っている場合は、それを現場名として使用
           siteName = cleanedDescription;
@@ -1047,6 +1103,84 @@ accountingRouter.post("/review-expense", async (req, res) => {
   } catch (err: any) {
     console.error("[Review Expense] Error:", err);
     return res.status(500).json({ error: "審議処理に失敗しました" });
+  }
+});
+
+/**
+ * 取引詳細取得
+ * GET /api/v1/accounting/transaction/:id
+ */
+accountingRouter.get("/transaction/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const r = req as unknown as AuthedRequest;
+    const userId = r.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "認証が必要です" });
+    }
+
+    // イベントを取得
+    const { data: event, error } = await supabaseAdmin
+      .from("events")
+      .select("*")
+      .eq("id", id)
+      .in("kind", [ACCOUNTING_EVENTS.SALE_REGISTERED, ACCOUNTING_EVENTS.EXPENSE_REGISTERED])
+      .single();
+
+    if (error || !event) {
+      return res.status(404).json({ error: "取引が見つかりませんでした" });
+    }
+
+    // ユーザー情報を取得
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("id, name")
+      .eq("id", event.user_id)
+      .single();
+
+    const payload = event.payload;
+    const isSale = event.kind === ACCOUNTING_EVENTS.SALE_REGISTERED;
+
+    // 取引詳細情報を整形
+    const transactionDetail = {
+      id: event.id,
+      kind: isSale ? "sale" : "expense",
+      createdAt: event.created_at,
+      createdBy: {
+        userId: event.user_id,
+        userName: profile?.name || "Unknown User",
+      },
+      date: isSale ? (payload.occurredAt || payload.date || event.created_at) : (payload.date || event.created_at),
+      title: isSale ? payload.clientName : payload.merchant,
+      amount: Number(payload.amount) || 0,
+      category: payload.category,
+      status: payload.status || "recorded",
+      description: payload.description,
+      siteName: payload.siteName,
+      // 売上固有の情報
+      ...(isSale && {
+        tax: payload.tax,
+        workCategoryId: payload.workCategoryId,
+        workCategoryLabel: payload.workCategoryLabel,
+        inputType: payload.inputType,
+        opsReward: payload.opsReward,
+      }),
+      // 経費固有の情報
+      ...(!isSale && {
+        riskLevel: payload.risk_level,
+        reviewerId: payload.reviewerId,
+        reviewerName: payload.reviewerName,
+        reviewedAt: payload.reviewedAt,
+        reviewFeedback: payload.reviewFeedback,
+        items: payload.items, // 品名リスト
+      }),
+    };
+
+    return res.json({ ok: true, transaction: transactionDetail });
+  } catch (err: any) {
+    console.error("[Transaction Detail] Error:", err);
+    return res.status(500).json({ error: "取引詳細の取得に失敗しました" });
   }
 });
 

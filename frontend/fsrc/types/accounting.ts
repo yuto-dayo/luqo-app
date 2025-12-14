@@ -129,3 +129,36 @@ export type InvoiceResponse = {
   ok: boolean;
   invoice: InvoiceData;
 };
+
+/**
+ * 取引詳細情報
+ */
+export type TransactionDetail = {
+  id: string;
+  kind: "sale" | "expense";
+  createdAt: string;
+  createdBy: {
+    userId: string;
+    userName: string;
+  };
+  date: string;
+  title: string;
+  amount: number;
+  category?: string;
+  status?: string;
+  description?: string;
+  siteName?: string;
+  // 売上固有
+  tax?: number;
+  workCategoryId?: string;
+  workCategoryLabel?: string;
+  inputType?: string;
+  opsReward?: number;
+  // 経費固有
+  riskLevel?: "HIGH" | "LOW";
+  reviewerId?: string;
+  reviewerName?: string;
+  reviewedAt?: string;
+  reviewFeedback?: string;
+  items?: ExpenseItem[];
+};

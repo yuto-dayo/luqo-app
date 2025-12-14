@@ -1,0 +1,659 @@
+/* ページ全体 */
+.page {
+  padding-bottom: 80px;
+}
+
+.loadingState {
+  text-align: center;
+  padding: 40px;
+  color: var(--color-text-muted, #94a3b8);
+}
+
+/* PL Card */
+.plCard {
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text-main, #1e293b);
+  padding: 24px;
+  border-radius: 24px;
+}
+
+.plHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 24px;
+}
+
+.plTitle {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-bottom: 4px;
+  color: var(--color-text-muted, #64748b);
+}
+
+.plAmount {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-text-main, #1e293b);
+}
+
+.plProfitLabel {
+  font-size: 12px;
+  opacity: 0.7;
+  color: var(--color-text-muted, #64748b);
+}
+
+.plProfitValue {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-main, #1e293b);
+}
+
+.plBar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.plBarSales {
+  flex: 1;
+  background: #38bdf8;
+}
+
+.plBarExpenses {
+  flex: 1;
+  background: #f43f5e;
+}
+
+.plSummary {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.plSummarySales {
+  color: #38bdf8;
+}
+
+.plSummaryExpenses {
+  color: #f43f5e;
+}
+
+/* Section */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px 16px 0;
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-secondary, #475569);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Ops Ranking */
+.opsRanking {
+  display: flex;
+  overflow-x: auto;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+.opsRankingCard {
+  padding: 12px 16px;
+  min-width: 140px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.opsRankingBadge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.opsRankingBadgeFirst {
+  background: #fef9c3;
+  color: #ca8a04;
+}
+
+.opsRankingBadgeOther {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.opsRankingName {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-text-main, #1e293b);
+}
+
+.opsRankingPoints {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--color-text-main, #0f172a);
+}
+
+.opsRankingEmpty {
+  text-align: center;
+  padding: 12px;
+  color: var(--color-text-muted, #94a3b8);
+  font-size: 12px;
+  width: 100%;
+}
+
+/* History Section */
+.historyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.filterButtons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.filterButton {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filterButtonAll {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: white;
+}
+
+.filterButtonAllInactive {
+  border-color: #e5e7eb;
+  background: white;
+  color: #64748b;
+}
+
+.filterButtonSales {
+  border-color: #0284c7;
+  background: #0284c7;
+  color: white;
+}
+
+.filterButtonSalesInactive {
+  border-color: #e5e7eb;
+  background: white;
+  color: #64748b;
+}
+
+.filterButtonExpenses {
+  border-color: #ef4444;
+  background: #ef4444;
+  color: white;
+}
+
+.filterButtonExpensesInactive {
+  border-color: #e5e7eb;
+  background: white;
+  color: #64748b;
+}
+
+/* Date Picker Container */
+.datePickerContainer {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--color-surface-secondary, #f8fafc);
+  border-radius: 12px;
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.datePickerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.datePickerTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #475569);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.datePickerClearButton {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  background: white;
+  color: var(--color-text-muted, #64748b);
+  cursor: pointer;
+}
+
+/* Filter Info */
+.filterInfo {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--color-surface-secondary, #eff6ff);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary, #1e40af);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* History Groups */
+.historyGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.historyGroup {
+  /* グループコンテナ */
+}
+
+.historyGroupTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted, #94a3b8);
+  margin-bottom: 8px;
+  padding-left: 4px;
+  position: sticky;
+  top: 64px;
+  z-index: 10;
+  text-shadow: 0 2px 4px rgba(255, 255, 255, 0.8);
+}
+
+.historyItems {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.historyItem {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-left: 4px solid;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+}
+
+.historyItem:hover {
+  background-color: var(--color-surface-secondary, #f8fafc);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.historyItemSale {
+  border-left-color: #0284c7;
+}
+
+.historyItemExpense {
+  border-left-color: #ef4444;
+}
+
+.historyItemNegative {
+  opacity: 0.6;
+  background: #f3f4f6;
+}
+
+.historyItemContent {
+  flex: 1;
+}
+
+.historyItemTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-main, #1e293b);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.historyItemBadge {
+  font-size: 10px;
+  background: #94a3b8;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.historyItemCategory {
+  font-size: 11px;
+  color: var(--color-text-muted, #64748b);
+  margin-top: 2px;
+}
+
+.historyItemPending {
+  color: #f59e0b;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.historyItemAmount {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.historyItemAmountSale {
+  color: #0284c7;
+}
+
+.historyItemAmountExpense {
+  color: #ef4444;
+}
+
+.historyItemAmountNegative {
+  color: #64748b;
+}
+
+.historyItemActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.historyItemDeleteButton {
+  border: none;
+  background: transparent;
+  color: #cbd5e1;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.historyItemDeleteButton:hover {
+  color: #ef4444;
+}
+
+/* Retro Game Mode */
+:global(.retro-game) .historyItem:hover {
+  transform: none;
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+  border: 2px solid var(--color-text-main, #2d2d2d);
+}
+
+.historyEmpty {
+  text-align: center;
+  padding: 40px;
+  color: var(--color-text-muted, #94a3b8);
+  font-size: 13px;
+  background: #f1f5f9;
+  border-radius: 16px;
+}
+
+.historyEmptyTitle {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.historyEmptySubtitle {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+/* FAB Menu */
+.fabMenu {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9990;
+}
+
+/* 親FABボタン */
+.fabParent {
+  position: relative;
+  z-index: 1;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full, 50%);
+  border: none;
+  background: var(--color-seed, #00639b);
+  color: white;
+  box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.3s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1)),
+              box-shadow 0.3s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1)),
+              background 0.3s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1));
+  user-select: none;
+}
+
+.fabParent:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04));
+}
+
+.fabParent:active {
+  transform: scale(0.95);
+}
+
+.fabParentExpanded {
+  transform: rotate(45deg);
+  background: var(--color-text-muted, #94a3b8);
+}
+
+.fabParentExpanded:hover {
+  transform: rotate(45deg) scale(1.1);
+}
+
+/* 子FABボタン */
+.fabChild {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full, 50%);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05));
+  transition: transform 0.3s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1)),
+              box-shadow 0.3s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1)),
+              opacity 0.3s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1));
+  transition-delay: calc(var(--index) * 0.05s);
+  user-select: none;
+  opacity: 0;
+  transform: translateY(0) scale(0);
+  pointer-events: none;
+}
+
+/* 展開時のアニメーション */
+.fabChildVisible {
+  opacity: 1;
+  transform: translateY(calc(-64px * (var(--index) + 1))) scale(1);
+  pointer-events: auto;
+  transition-delay: calc(var(--index) * 0.05s);
+}
+
+.fabChildVisible:hover {
+  transform: translateY(calc(-64px * (var(--index) + 1))) scale(1.1);
+  box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04));
+}
+
+.fabChildVisible:active {
+  transform: translateY(calc(-64px * (var(--index) + 1))) scale(0.95);
+}
+
+.fabChildInvoice {
+  background: #2563eb;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+}
+
+.fabChildSales {
+  background: #0f172a;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.4);
+}
+
+.fabChildApproval {
+  background: #f59e0b;
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+}
+
+/* Refreshing Indicator */
+.refreshingIndicator {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.refreshingSpinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Retro Game Mode */
+:global(.retro-game) .datePickerContainer {
+  background: #1a1a2e;
+  border-radius: 0;
+  border: 2px solid #00ffff;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 4px 4px 0px #000000;
+}
+
+:global(.retro-game) .datePickerTitle {
+  color: #00ffff;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.8);
+}
+
+:global(.retro-game) .datePickerClearButton {
+  border-radius: 0;
+  border: 2px solid #00ffff;
+  background: #0a0a0f;
+  color: #00ffff;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+}
+
+:global(.retro-game) .filterInfo {
+  background: #0a0a0f;
+  border-radius: 0;
+  border: 2px solid #00ffff;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+  color: #00ff88;
+}
+
+/* Retro Game Mode - PL Card */
+:global(.retro-game) .plCard {
+  background: #1a1a2e !important;
+  color: #00ffff !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.5),
+    4px 4px 0px #000000 !important;
+  border-radius: 0 !important;
+}
+
+:global(.retro-game) .plTitle,
+:global(.retro-game) .plProfitLabel {
+  color: #00ffff !important;
+  opacity: 0.9 !important;
+}
+
+:global(.retro-game) .plAmount,
+:global(.retro-game) .plProfitValue {
+  color: #00ffff !important;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.8);
+}
+
+/* Retro Game Mode - FAB Menu */
+:global(.retro-game) .fabParent {
+  border-radius: 0;
+  border: 3px solid #2d2d2d;
+  background: var(--color-seed, #00639b);
+  box-shadow: 4px 4px 0px #2d2d2d;
+  transition: transform 0.1s steps(2, end),
+              box-shadow 0.1s steps(2, end),
+              background 0.1s steps(2, end);
+}
+
+:global(.retro-game) .fabParent:hover {
+  transform: scale(1.05);
+  box-shadow: 2px 2px 0px #2d2d2d;
+}
+
+:global(.retro-game) .fabParent:active {
+  transform: scale(0.95);
+  box-shadow: 1px 1px 0px #2d2d2d;
+}
+
+:global(.retro-game) .fabParentExpanded {
+  background: #2d2d2d;
+}
+
+:global(.retro-game) .fabChild {
+  border-radius: 0;
+  border: 3px solid #2d2d2d;
+  box-shadow: 4px 4px 0px #2d2d2d;
+  transition: transform 0.1s steps(2, end),
+              box-shadow 0.1s steps(2, end),
+              opacity 0.1s steps(2, end);
+}
+
+:global(.retro-game) .fabChildVisible:hover {
+  box-shadow: 2px 2px 0px #2d2d2d;
+}
+
+:global(.retro-game) .fabChildVisible:active {
+  box-shadow: 1px 1px 0px #2d2d2d;
+}

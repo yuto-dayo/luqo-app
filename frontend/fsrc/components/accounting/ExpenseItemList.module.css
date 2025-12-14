@@ -1,0 +1,287 @@
+/* ExpenseItemList.module.css */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-main, #1e293b);
+  display: block;
+}
+
+.addButton {
+  background: var(--color-error, #b91c1c);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.addButton:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.empty {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--color-border, #e2e8f0);
+  background: var(--color-surface-container-low, #f8fafc);
+  color: var(--color-text-muted, #94a3b8);
+  font-size: 12px;
+  text-align: center;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #fff);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.itemHeader {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.itemNameInput {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #fff);
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.itemNameInput:focus {
+  border-color: var(--color-seed, #0f172a);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+}
+
+.removeButton {
+  background: var(--color-error, #ef4444);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.removeButton:hover {
+  background: var(--color-error-dark, #dc2626);
+  transform: scale(1.05);
+}
+
+.itemDetails {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  align-items: end;
+}
+
+.detailField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-sub, #64748b);
+  display: block;
+}
+
+.detailInput {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #fff);
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.detailInput:focus {
+  border-color: var(--color-seed, #0f172a);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+}
+
+.subtotal {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface-container-low, #f8fafc);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-error, #b91c1c);
+  text-align: right;
+}
+
+.totalCard {
+  margin-top: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, var(--color-primary-surface, #f0f9ff), var(--color-primary-bg, #e0f2fe));
+  border: 2px solid var(--color-primary, #bfdbfe);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.totalCard.hasDifference {
+  background: linear-gradient(145deg, var(--color-warning-surface, #fef3c7), var(--color-warning-bg, #fde68a));
+  border-color: var(--color-warning, #fbbf24);
+}
+
+.totalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.totalLabelGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.totalLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary-dark, #1e40af);
+}
+
+.totalCard.hasDifference .totalLabel {
+  color: var(--color-warning-dark, #92400e);
+}
+
+.differenceWarning {
+  font-size: 9px;
+  color: var(--color-warning-dark, #92400e);
+  font-weight: 500;
+}
+
+.totalValueGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.totalValue {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-primary-dark, #1e40af);
+}
+
+.totalCard.hasDifference .totalValue {
+  color: var(--color-warning-dark, #92400e);
+}
+
+.applyButton {
+  background: var(--color-primary, #3b82f6);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.applyButton:hover {
+  background: var(--color-primary-dark, #2563eb);
+  transform: translateY(-1px);
+}
+
+.totalNote {
+  font-size: 10px;
+  color: var(--color-primary-dark, #1e40af);
+  font-weight: 500;
+}
+
+.totalCard.hasDifference .totalNote {
+  color: var(--color-warning-dark, #92400e);
+}
+
+/* Retro Game Mode */
+:global(.retro-game) .item {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+}
+
+:global(.retro-game) .itemNameInput,
+:global(.retro-game) .detailInput {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+}
+
+:global(.retro-game) .addButton,
+:global(.retro-game) .removeButton {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+}
+
+:global(.retro-game) .totalCard {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+}
+
+:global(.retro-game) .applyButton {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+}

@@ -10,6 +10,7 @@ export type OkrData = {
   strategy: string;
   iconChar: string;
   themeColor: string;
+  startAt?: string;
   endAt?: string;
 };
 

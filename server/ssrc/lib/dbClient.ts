@@ -3,6 +3,7 @@ import { supabaseAdmin } from "../services/supabaseClient";
 import type { EventRow } from "../models/events";
 import type { UserBanditState } from "../types/banditState";
 import type { UserStarState } from "../types/starState";
+import { logger } from "./logger";
 
 // クライアント未指定時は管理者クライアントを使用（後方互換用）
 const getClient = (client?: SupabaseClient) => client ?? supabaseAdmin;
@@ -18,12 +19,44 @@ type DbEvent = {
   payload: any;
 };
 
+export async function getEventsByUserPeriod(
+  userId: string,
+  startDate: string, // ISO string
+  endDate: string,   // ISO string
+  client?: SupabaseClient,
+): Promise<EventRow[]> {
+  const supabase = getClient(client);
+
+  const { data, error } = await supabase
+    .from("events")
+    .select("*")
+    .eq("user_id", userId)
+    .gte("created_at", startDate)
+    .lt("created_at", endDate)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    logger.error("Failed to fetch events:", error);
+    return [];
+  }
+
+  // EventRow型に合わせて整形
+  return (data || []).map((row: DbEvent) => ({
+    id: row.id,
+    userId: row.user_id,
+    month: row.created_at.slice(0, 7), // 後方互換性のため残す
+    createdAt: row.created_at,
+    text: row.text,
+    kind: row.kind,
+    raw: row.payload,
+  }));
+}
+
 export async function getEventsByUserMonth(
   userId: string,
   month: string, // "YYYY-MM"
   client?: SupabaseClient,
 ): Promise<EventRow[]> {
-  const supabase = getClient(client);
   // 月の初日と末日を計算して範囲検索
   const start = `${month}-01T00:00:00.000Z`;
   // 次の月の1日より前まで (簡易実装)
@@ -34,29 +67,7 @@ export async function getEventsByUserMonth(
   const nextDate = new Date(Date.UTC(nextY, nextM - 1, 1));
   const end = nextDate.toISOString();
 
-  const { data, error } = await supabase
-    .from("events")
-    .select("*")
-    .eq("user_id", userId)
-    .gte("created_at", start)
-    .lt("created_at", end)
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    console.error("Failed to fetch events:", error);
-    return [];
-  }
-
-  // EventRow型に合わせて整形
-  return (data || []).map((row: DbEvent) => ({
-    id: row.id,
-    userId: row.user_id,
-    month: row.created_at.slice(0, 7),
-    createdAt: row.created_at,
-    text: row.text,
-    kind: row.kind,
-    raw: row.payload, // payloadをrawとして扱う
-  }));
+  return getEventsByUserPeriod(userId, start, end, client);
 }
 
 // 全員のログを期間で取得（ニュース表示用）
@@ -76,7 +87,7 @@ export async function getAllEventsByDateRange(
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.error("Failed to fetch all events:", error);
+    logger.error("Failed to fetch all events:", error);
     return [];
   }
 
@@ -143,12 +154,12 @@ export async function getFixedScore(userId: string, month: string, client?: Supa
     .contains("payload", { month: month })
     .order("created_at", { ascending: false }) // 最新1件
     .limit(1)
-    .maybeSingle(); // single()だと0件でエラーになる場合があるのでmaybeSingle推奨
+    .maybeSingle();
 
   if (error || !data) return null;
 
   return {
-    ...data.payload, // { LU, Q, O, total, reasoning }
+    ...data.payload,
     fixedAt: data.created_at,
   };
 }
@@ -163,7 +174,9 @@ export async function getBanditState(userId: string, client?: SupabaseClient): P
     .eq("user_id", userId)
     .maybeSingle();
 
-  return (data?.state as UserBanditState) || {};
+  // 旧形式から新形式へのマイグレーションを適用
+  const { migrateBanditState } = await import("../types/banditState");
+  return migrateBanditState(data?.state || null);
 }
 
 export async function saveBanditState(userId: string, state: UserBanditState, client?: SupabaseClient): Promise<void> {
@@ -176,7 +189,7 @@ export async function saveBanditState(userId: string, state: UserBanditState, cl
       updated_at: new Date().toISOString(),
     });
 
-  if (error) console.error("Failed to save bandit state", error);
+  if (error) logger.error("Failed to save bandit state", error);
 }
 
 // --- 3. Tスコア/スター状態 (Star State) ---
@@ -202,7 +215,7 @@ export async function saveStarState(userId: string, state: UserStarState, client
       updated_at: new Date().toISOString(),
     });
 
-  if (error) console.error("Failed to save star state", error);
+  if (error) logger.error("Failed to save star state", error);
 }
 
 export async function getPendingStarStates(client?: SupabaseClient): Promise<Array<{ userId: string; userName?: string; pending: string[]; votes?: UserStarState["votes"] }>> {
@@ -229,7 +242,7 @@ export async function getPendingStarStates(client?: SupabaseClient): Promise<Arr
   if (results.length > 0) {
     const userIds = results.map(r => r.userId);
     const profileMap = new Map<string, string>();
-    
+
     // 1. まずprofilesテーブルから取得
     const { data: profiles, error: profileError } = await supabaseAdmin
       .from("profiles")
@@ -237,9 +250,9 @@ export async function getPendingStarStates(client?: SupabaseClient): Promise<Arr
       .in("id", userIds);
 
     if (profileError) {
-      console.error("[getPendingStarStates] Failed to fetch profiles:", profileError);
+      logger.error("[getPendingStarStates] Failed to fetch profiles:", profileError);
     } else {
-      console.log(`[getPendingStarStates] Fetched ${profiles?.length || 0} profiles for ${userIds.length} user IDs`);
+      logger.debug(`[getPendingStarStates] Fetched ${profiles?.length || 0} profiles for ${userIds.length} user IDs`);
     }
 
     (profiles || []).forEach((p: any) => {
@@ -251,7 +264,7 @@ export async function getPendingStarStates(client?: SupabaseClient): Promise<Arr
     // 2. profilesにないユーザーはauth.usersから取得を試みる
     const missingUserIds = userIds.filter(id => !profileMap.has(id));
     if (missingUserIds.length > 0) {
-      console.log(`[getPendingStarStates] Trying to fetch ${missingUserIds.length} users from auth.users`);
+      logger.debug(`[getPendingStarStates] Trying to fetch ${missingUserIds.length} users from auth.users`);
       // auth.usersは直接クエリできないため、RPC関数を使うか、emailを取得して表示名として使う
       // ここでは、profilesテーブルにレコードを作成するか、emailを取得する方法を検討
       // とりあえず、emailを取得してみる
@@ -262,10 +275,10 @@ export async function getPendingStarStates(client?: SupabaseClient): Promise<Arr
             // emailの@より前の部分を表示名として使用
             const emailName = authUser.user.email.split('@')[0];
             profileMap.set(userId, emailName);
-            console.log(`[getPendingStarStates] Using email prefix as name for ${userId}: ${emailName}`);
+            logger.debug(`[getPendingStarStates] Using email prefix as name for ${userId}: ${emailName}`);
           }
         } catch (err) {
-          console.warn(`[getPendingStarStates] Failed to get auth user for ${userId}:`, err);
+          logger.warn(`[getPendingStarStates] Failed to get auth user for ${userId}:`, err);
         }
       }
     }
@@ -274,7 +287,7 @@ export async function getPendingStarStates(client?: SupabaseClient): Promise<Arr
     results.forEach(r => {
       r.userName = profileMap.get(r.userId) || undefined;
       if (!r.userName) {
-        console.warn(`[getPendingStarStates] No userName found for userId: ${r.userId}`);
+        logger.warn(`[getPendingStarStates] No userName found for userId: ${r.userId}`);
       }
     });
   }
@@ -282,9 +295,38 @@ export async function getPendingStarStates(client?: SupabaseClient): Promise<Arr
   return results;
 }
 
+// アクティブユーザーID（直近30日にイベントがあるユーザー）を取得
+export async function getAllActiveUserIds(client?: SupabaseClient): Promise<string[]> {
+  const supabase = getClient(client);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  // distinct指定がsupabase-jsで直接できない場合があるため、rpcを使うか、
+  // 少人数前提でイベントを取得してSetでユニーク化する簡易実装を行う。
+  // ここでは events から user_id を取得してユニーク化する。
+  const { data, error } = await supabase
+    .from("events")
+    .select("user_id")
+    .gte("created_at", thirtyDaysAgo);
+
+  if (error) {
+    logger.error("Failed to fetch active users:", error);
+    return [];
+  }
+
+  const userIds = new Set<string>();
+  (data || []).forEach((row: any) => {
+    if (row.user_id) userIds.add(row.user_id);
+  });
+
+  return Array.from(userIds);
+}
+
 export const dbClient = {
   getAllEventsByDateRange,
+  getAllActiveUserIds,
   getEventsByUserMonth,
+  getEventsByUserPeriod,
   appendEvent,
   getBanditState,
   saveBanditState,
@@ -368,7 +410,7 @@ export async function getTeamRecentLogs(limit = 20, client?: SupabaseClient): Pr
     .limit(limit);
 
   if (error || !data) {
-    console.warn("Failed to fetch team logs", error);
+    logger.warn("Failed to fetch team logs", error);
     return [];
   }
 

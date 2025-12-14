@@ -14,15 +14,57 @@ export function useTScoreRealtime(
 ) {
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
   const isSubscribedRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
+  const startRealtimeRef = useRef<(() => Promise<void>) | null>(null);
+  const maxRetries = 5; // 最大リトライ回数
+  const baseRetryDelay = 1000; // 初期リトライ遅延（ミリ秒）
+
+  // リトライをクリーンアップする関数
+  const clearRetry = useCallback(() => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  }, []);
+
+  // 指数バックオフ付きリトライ関数
+  const scheduleRetry = useCallback(() => {
+    clearRetry();
+    
+    if (retryCountRef.current >= maxRetries) {
+      console.warn("[TScore Realtime] Max retries reached. Giving up.");
+      retryCountRef.current = 0;
+      return;
+    }
+
+    // 指数バックオフ: 1秒、2秒、4秒、8秒、16秒...
+    const delay = baseRetryDelay * Math.pow(2, retryCountRef.current);
+    retryCountRef.current += 1;
+
+    console.log(`[TScore Realtime] Scheduling retry ${retryCountRef.current}/${maxRetries} in ${delay}ms`);
+    
+    retryTimerRef.current = setTimeout(() => {
+      if (!isSubscribedRef.current && enabled && startRealtimeRef.current) {
+        void startRealtimeRef.current();
+      }
+    }, delay);
+  }, [enabled, clearRetry]);
 
   // Supabase Realtimeサブスクリプションの開始
   const startRealtime = useCallback(async () => {
     if (isSubscribedRef.current || !enabled) return;
 
+    // 既存のサブスクリプションをクリーンアップ
+    if (subscriptionRef.current) {
+      subscriptionRef.current.unsubscribe();
+      subscriptionRef.current = null;
+    }
+
     try {
       // star_statesテーブルの変更を監視
       const channel = supabase
-        .channel("tscore-updates")
+        .channel(`tscore-updates-${Date.now()}`) // 一意なチャンネル名で重複を防ぐ
         .on(
           "postgres_changes",
           {
@@ -53,9 +95,19 @@ export function useTScoreRealtime(
           
           if (status === "SUBSCRIBED") {
             isSubscribedRef.current = true;
+            retryCountRef.current = 0; // 成功したらリトライカウントをリセット
+            clearRetry();
+            console.log("[TScore Realtime] Successfully subscribed");
           } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-            console.warn("[TScore Realtime] Failed, will retry on next interaction");
+            console.warn(`[TScore Realtime] Connection failed (${status}), will retry automatically`);
             isSubscribedRef.current = false;
+            
+            // 自動リトライをスケジュール
+            scheduleRetry();
+          } else if (status === "CLOSED") {
+            // CLOSEDは正常な状態（ページが非表示になった時など）なので、リトライしない
+            isSubscribedRef.current = false;
+            clearRetry();
           }
         });
 
@@ -63,22 +115,33 @@ export function useTScoreRealtime(
         unsubscribe: () => {
           channel.unsubscribe();
           isSubscribedRef.current = false;
+          clearRetry();
         },
       };
     } catch (err) {
       console.error("[TScore Realtime] Setup error:", err);
       isSubscribedRef.current = false;
+      
+      // エラー時もリトライをスケジュール
+      scheduleRetry();
     }
-  }, [enabled, onDataChange, targetUserId]);
+  }, [enabled, onDataChange, targetUserId, clearRetry, scheduleRetry]);
+
+  // startRealtimeRefを更新
+  useEffect(() => {
+    startRealtimeRef.current = startRealtime;
+  }, [startRealtime]);
 
   // サブスクリプションの停止
   const stopRealtime = useCallback(() => {
+    clearRetry();
     if (subscriptionRef.current) {
       subscriptionRef.current.unsubscribe();
       subscriptionRef.current = null;
       isSubscribedRef.current = false;
     }
-  }, []);
+    retryCountRef.current = 0; // 停止時はリトライカウントをリセット
+  }, [clearRetry]);
 
   // ページの可視性・フォーカス管理
   useEffect(() => {
@@ -135,8 +198,9 @@ export function useTScoreRealtime(
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("blur", handleBlur);
       stopRealtime();
+      clearRetry();
     };
-  }, [enabled, startRealtime, stopRealtime]);
+  }, [enabled, startRealtime, stopRealtime, clearRetry]);
 
   return {
     refresh: onDataChange,

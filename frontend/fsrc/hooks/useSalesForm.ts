@@ -36,7 +36,7 @@ export function useSalesForm({ isOpen, onSuccess }: UseSalesFormProps) {
     const [newCategoryInput, setNewCategoryInput] = useState(""); // 新規カテゴリ入力用
     const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
     const [addingCategory, setAddingCategory] = useState(false);
-    
+
     // 後方互換性のため、既存の単一選択の状態も維持（非推奨）
     const [workCategoryId, setWorkCategoryId] = useState<string>("");
     const [workCategoryLabel, setWorkCategoryLabel] = useState<string>("");
@@ -189,19 +189,19 @@ export function useSalesForm({ isOpen, onSuccess }: UseSalesFormProps) {
     // AIからの推奨カテゴリを設定（複数カテゴリと金額のペア対応）
     const setSuggestedCategories = useCallback((categories: Array<{ categoryCode: string; amount: number }>) => {
         if (!categories || categories.length === 0) return;
-        
+
         // 一度のstate更新ですべてのカテゴリを追加/更新する
         setSelectedCategories(prev => {
             const updated = [...prev];
-            
+
             categories.forEach(({ categoryCode, amount }) => {
                 if (!categoryCode) return;
-                
+
                 // コードまたはラベルからカテゴリを検索
                 const matchedCat = workCategories.find(
                     c => c.code === categoryCode || c.label.includes(categoryCode) || categoryCode.includes(c.label)
                 );
-                
+
                 if (matchedCat) {
                     // 既に選択されている場合は金額を更新、なければ追加
                     const existingIndex = updated.findIndex(sc => sc.id === matchedCat.id);
@@ -221,7 +221,7 @@ export function useSalesForm({ isOpen, onSuccess }: UseSalesFormProps) {
                     }
                 }
             });
-            
+
             return updated;
         });
     }, [workCategories]);
@@ -241,19 +241,20 @@ export function useSalesForm({ isOpen, onSuccess }: UseSalesFormProps) {
         setNewCategoryInput("");
         // 日付とカテゴリは連続入力時に便利なのでリセットしない
     };
-    
+
     // 品名を追加
     const addItem = () => {
         setItems([...items, { name: "" }]);
     };
-    
+
     // 品名を更新
-    const updateItem = (index: number, field: "name" | "quantity" | "unitPrice", value: string | number) => {
+    const updateItem = (index: number, field: "name" | "quantity" | "unitPrice", value: string | number | undefined) => {
         const newItems = [...items];
-        newItems[index] = { ...newItems[index], [field]: value };
+        // 型定義上は厳密に一致させる必要がありますが、呼び出し側で制御されているため any でキャスト
+        newItems[index] = { ...newItems[index], [field]: value } as any;
         setItems(newItems);
     };
-    
+
     // 品名を削除
     const removeItem = (index: number) => {
         setItems(items.filter((_, i) => i !== index));
@@ -343,7 +344,7 @@ export function useSalesForm({ isOpen, onSuccess }: UseSalesFormProps) {
                 try {
                     // 品名リストをフィルタリング（空の品名を除外）
                     const validItems = items.filter(item => item.name.trim().length > 0);
-                    
+
                     const res = await apiClient.post<{ earnedPoints: number; message: string }>("/api/v1/accounting/expenses", {
                         manualData: {
                             amount: numericAmount,

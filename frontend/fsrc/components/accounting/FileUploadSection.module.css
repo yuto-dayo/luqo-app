@@ -1,0 +1,259 @@
+/* FileUploadSection.module.css */
+
+.container {
+  margin-bottom: -8px;
+}
+
+.fileInput {
+  display: none;
+}
+
+.previewContainer {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.preview {
+  height: 120px;
+  width: 100%;
+  border-radius: 16px;
+  background: var(--color-surface-container-low, #f1f5f9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border, #e2e8f0);
+  position: relative;
+}
+
+.preview.analyzing {
+  border: 2px solid var(--color-text-main, #475569);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.previewImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.previewPlaceholder {
+  text-align: center;
+  color: var(--color-text-muted, #64748b);
+}
+
+.previewPlaceholderText {
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.analyzingContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+  position: relative;
+}
+
+.analyzingIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-text-main, #475569), var(--color-text-sub, #64748b));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: spin 1s linear infinite;
+  box-shadow: 0 0 20px rgba(71, 85, 105, 0.4);
+}
+
+.analyzingText {
+  text-align: center;
+}
+
+.analyzingTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-text-main, #475569);
+  margin-bottom: 4px;
+}
+
+.analyzingSubtitle {
+  font-size: 11px;
+  color: var(--color-text-muted, #64748b);
+  font-weight: 500;
+}
+
+.progressBar {
+  width: 200px;
+  height: 4px;
+  background: var(--color-border, #e2e8f0);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-text-main, #475569), var(--color-text-sub, #64748b));
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progressFill.analyzing {
+  background: linear-gradient(
+    90deg,
+    var(--color-text-main, #475569) 0%,
+    var(--color-text-sub, #64748b) 50%,
+    var(--color-text-main, #475569) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.analyzingGlow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at center,
+    rgba(71, 85, 105, 0.1) 0%,
+    transparent 70%
+  );
+  animation: pulse-glow 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.retakeButton {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retakeButton:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.uploadButton {
+  width: 100%;
+  padding: 16px;
+  border-radius: 16px;
+  border: 2px dashed var(--color-border, #cbd5e1);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--color-text-main, #475569);
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.uploadButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.uploadButton.sales {
+  border-color: var(--color-border, #cbd5e1);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--color-text-main, #475569);
+}
+
+.uploadButton.sales:disabled {
+  background: var(--color-surface-container-low, #f1f5f9);
+}
+
+.uploadButton.expenses {
+  border-color: var(--color-error-light, #fca5a5);
+  background: var(--color-error-surface, #fff1f2);
+  color: var(--color-error, #b91c1c);
+}
+
+.uploadButton.expenses:disabled {
+  background: var(--color-error-surface, #fff1f2);
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border, #cbd5e1);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.dropHint {
+  text-align: center;
+  font-size: 10px;
+  color: var(--color-text-muted, #94a3b8);
+  margin-top: 4px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(71, 85, 105, 0.4);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 8px rgba(71, 85, 105, 0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: 200px 0;
+  }
+}
+
+/* Retro Game Mode */
+:global(.retro-game) .preview {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+}
+
+:global(.retro-game) .uploadButton {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+}
+
+:global(.retro-game) .retakeButton {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+}

@@ -4,11 +4,11 @@ import { loadPromptById } from "./promptIds";
 // 環境変数からキーを読み込み
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 if (!OPENAI_API_KEY) {
-  throw new Error("OPENAI_API_KEY environment variable is not set");
+    throw new Error("OPENAI_API_KEY environment variable is not set");
 }
 
 const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
+    apiKey: OPENAI_API_KEY,
 });
 
 // GPT-5.1モデル名（https://platform.openai.com/docs/models/gpt-5.1）
@@ -67,7 +67,7 @@ export function safeJsonParse<T>(text: string): T | null {
 }
 
 // LUQOスコア生成関数 (OpenAI版)
-export async function generateLuqoScore(logs: any[], focus?: string): Promise<LuqoScore> {
+export async function generateLuqoScore(logs: any[], focus?: string, context?: any): Promise<LuqoScore> {
     try {
         const joinedLogs = logs
             .map((row) => {
@@ -78,6 +78,9 @@ export async function generateLuqoScore(logs: any[], focus?: string): Promise<Lu
             .filter((text) => text.length > 0)
             .join("\n\n---\n\n");
 
+        // ログがない場合、コンテキストがあればそれだけで評価するルートも考えられるが、
+        // 現状はログ重視なので「データ待ち」を返す（ただしコンテキストを表示してあげると親切かも）
+        // ここでは既存ロジックを維持しつつ、ログがある場合にコンテキストを加味する
         if (!joinedLogs) {
             return {
                 LU: 0, Q: 0, O: 0, total: 0,
@@ -101,9 +104,23 @@ export async function generateLuqoScore(logs: any[], focus?: string): Promise<Lu
         const systemInstruction = await loadPromptById("luqo.prompt");
 
         let userPrompt = `
-以下は、ある職人の1ヶ月分のログ／まとめAです。
-この内容だけを根拠に LU / Q / O を採点してください。
+以下は、ある職人の期間中（1週間または1ヶ月）の活動ログです。
+この内容と、下記の定量データ(Context)を根拠に LU / Q / O を採点してください。
 `;
+        // ★ Context Injection
+        if (context) {
+            userPrompt += `
+【定量データ (Context)】
+- 期間: ${context.period?.start} 〜 ${context.period?.end}
+- 活動量: ログ数 ${context.activity?.logCount}件 (文字数: ${context.activity?.totalChars})
+- 経理貢献: 売上 ¥${Number(context.accounting?.totalSales).toLocaleString()} (${context.accounting?.salesCount}件) / 経費 ¥${Number(context.accounting?.totalExpenses).toLocaleString()}
+- Opsポイント獲得: ${context.ops?.earnedPoints}pt
+
+※ 売上が高い場合は「O (Organization)」や「LU (Level Up)」を、
+※ ログ頻度が高い場合は「Q (Quality)」や「LU」を適宜加点評価してください。
+`;
+        }
+
         if (focus) userPrompt += `\n【今月の注力テーマ (Focus)】\n${focus}\n`;
         userPrompt += `\n【ログ本文】\n${joinedLogs}\n`;
 

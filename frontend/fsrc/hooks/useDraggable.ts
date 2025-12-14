@@ -34,7 +34,7 @@ export function useDraggable({
     const [isDocked, setIsDocked] = useState(false);
     const [dockSide, setDockSide] = useState<"left" | "right" | null>(null); // 吸着している側
     const [isAnimating, setIsAnimating] = useState(false);
-    
+
     // ドラッグ状態の管理
     const isDragging = useRef(false);
     const hasMoved = useRef(false); // 実際に移動したかどうか（タップ判定用）
@@ -114,8 +114,8 @@ export function useDraggable({
                 const windowWidth = window.innerWidth;
                 const windowHeight = window.innerHeight;
                 const newY = Math.max(halfFabSize, Math.min(windowHeight - halfFabSize, position.y));
-                const snappedX = dockSide === "left" 
-                    ? -halfFabSize 
+                const snappedX = dockSide === "left"
+                    ? -halfFabSize
                     : windowWidth - halfFabSize;
                 setPosition({ x: snappedX, y: newY });
             } else {
@@ -155,7 +155,7 @@ export function useDraggable({
         // すべての状態を最初にリセット（これが最重要）
         isDragging.current = false;
         hasMoved.current = false;
-        
+
         // ドラッグ開始位置と時刻を記録（タップ判定のため）
         dragStartPos.current = { x: e.clientX, y: e.clientY };
         dragStartTime.current = Date.now();
@@ -199,7 +199,7 @@ export function useDraggable({
                     x: position.x + e.movementX,
                     y: position.y + e.movementY,
                 };
-                
+
                 // 画面内に制限
                 const constrainedPos = constrainToBounds(newPos);
                 setPosition(constrainedPos);
@@ -215,21 +215,21 @@ export function useDraggable({
 
         // ドラッグしていた場合のみ、画面端への吸着を実行
         if (hasMoved.current) {
-            if (process.env.NODE_ENV === 'development') {
+            if (import.meta.env.MODE === 'development') {
                 console.log('[useDraggable] → ドラッグ終了');
             }
-            
+
             // ドラッグ終了時に画面端への吸着を実行
             const snappedPos = calculateSnapPosition(position.x, position.y);
             setIsAnimating(true);
             setPosition(snappedPos);
-            
+
             // アニメーション完了を待つ
             setTimeout(() => setIsAnimating(false), 300);
-            
+
             onDragEnd?.();
         }
-        
+
         // 注意: hasMoved.currentはhandleClickで参照されるため、ここではリセットしない
         // handleClickが呼ばれた後にリセットされる
     };
@@ -240,18 +240,18 @@ export function useDraggable({
      * StarSettingsPage等のFABと同じシンプルな方式
      */
     const handleClick = (e: React.MouseEvent) => {
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.MODE === 'development') {
             console.log('[useDraggable] click:', { hasMoved: hasMoved.current });
         }
-        
+
         // ドラッグしていなければタップとして処理
         if (!hasMoved.current) {
-            if (process.env.NODE_ENV === 'development') {
+            if (import.meta.env.MODE === 'development') {
                 console.log('[useDraggable] → タップとして処理');
             }
             onClick?.();
         }
-        
+
         // 状態をリセット
         isDragging.current = false;
         hasMoved.current = false;
@@ -264,11 +264,11 @@ export function useDraggable({
         if (el && el.hasPointerCapture(e.pointerId)) {
             el.releasePointerCapture(e.pointerId);
         }
-        
-        if (process.env.NODE_ENV === 'development') {
+
+        if (import.meta.env.MODE === 'development') {
             console.log('[useDraggable] pointerCancel: 状態リセット');
         }
-        
+
         // 状態をリセット
         isDragging.current = false;
         hasMoved.current = false;
@@ -279,14 +279,14 @@ export function useDraggable({
      */
     const undock = () => {
         if (!isDocked || !dockSide) return;
-        
+
         setIsDocked(false);
         setIsAnimating(true);
-        
+
         const windowWidth = window.innerWidth;
         const windowHeight = window.innerHeight;
         const moveDistance = 80; // 内側に移動する距離
-        
+
         // 現在のY座標を維持しつつ、X座標のみ内側に移動
         let newX: number;
         if (dockSide === "right") {
@@ -296,13 +296,13 @@ export function useDraggable({
             // 左端から内側に移動
             newX = -halfFabSize + moveDistance;
         }
-        
+
         // Y座標は現在の位置を維持（画面内に制限）
         const newY = Math.max(halfFabSize, Math.min(windowHeight - halfFabSize, position.y));
-        
+
         setPosition({ x: newX, y: newY });
         setDockSide(null);
-        
+
         // アニメーション完了を待つ
         setTimeout(() => setIsAnimating(false), 300);
     };

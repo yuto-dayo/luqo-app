@@ -133,11 +133,31 @@
 }
 
 .heroSection {
-    margin-bottom: 24px;
+    margin-bottom: clamp(1.5rem, 4vw, 2rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+/* LUQOスコア専用セクション */
+.luqoScoreSection {
+    margin-bottom: clamp(1.5rem, 4vw, 2rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+/* モバイル対応: LUQOスコアセクションの調整 */
+@media (max-width: 600px) {
+    .luqoScoreSection {
+        margin-bottom: var(--spacing-md);
+    }
 }
 
 .guardianBadgeWrapper {
     margin-top: 12px;
+    display: flex;
+    justify-content: center;
 }
 
 @keyframes fadeIn {

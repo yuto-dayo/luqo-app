@@ -9,7 +9,7 @@ type Props = {
  * 画面上のボタンやカードなどが、数秒に一回「ビリッ」とノイズが走るような演出を追加
  */
 const GlitchEffect: React.FC<Props> = ({ isActive }) => {
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<any>(null);
 
   useEffect(() => {
     if (!isActive) {
@@ -121,6 +121,14 @@ const GlitchEffect: React.FC<Props> = ({ isActive }) => {
 };
 
 export default GlitchEffect;
+
+
+
+
+
+
+
+
 
 
 

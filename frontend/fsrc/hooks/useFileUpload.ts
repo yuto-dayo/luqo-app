@@ -8,37 +8,41 @@ import * as pdfjsLib from "pdfjs-dist";
 let workerSrcSet = false;
 
 function setPdfWorker() {
-  if (typeof window === "undefined" || workerSrcSet) {
-    return;
-  }
-  
-  // 複数のパスを試行（.jsと.mjsの両方）
-  const workerPaths = [
-    "/pdfjs/pdf.worker.min.js",  // .jsファイルを優先
-    "/pdfjs/pdf.worker.min.mjs", // .mjsファイル
-  ];
-  
-  // まずは.jsファイルを試す（ブラウザ互換性が高い）
-  pdfjsLib.GlobalWorkerOptions.workerSrc = workerPaths[0];
-  workerSrcSet = true;
-  console.log("PDF.js worker set to:", pdfjsLib.GlobalWorkerOptions.workerSrc);
+    if (typeof window === "undefined" || workerSrcSet) {
+        return;
+    }
+
+    // 複数のパスを試行（.jsと.mjsの両方）
+    const workerPaths = [
+        "/pdfjs/pdf.worker.min.js",  // .jsファイルを優先
+        "/pdfjs/pdf.worker.min.mjs", // .mjsファイル
+    ];
+
+    // まずは.jsファイルを試す（ブラウザ互換性が高い）
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerPaths[0];
+    workerSrcSet = true;
+    console.log("PDF.js worker set to:", pdfjsLib.GlobalWorkerOptions.workerSrc);
 }
 
 // コンポーネントのマウント時に実行
 if (typeof window !== "undefined") {
-  setPdfWorker();
+    setPdfWorker();
 }
 
 type Mode = "sales" | "expenses";
 
-type AnalysisResult = {
+export type AnalysisResult = {
     amount?: number;
     date?: string;
     client?: string;
+    clientName?: string; // 取引先名（別名）
     merchant?: string;
     category?: string;
     siteName?: string; // 現場名
+    site?: string; // 現場名（別名）
     items?: Array<{ name: string; quantity?: number; unitPrice?: number }>; // 品名リスト
+    suggestedCategory?: string; // 推奨カテゴリ（単一）
+    suggestedCategories?: Array<{ categoryCode: string; amount: number }>; // 推奨カテゴリ（複数）
 };
 
 type UseFileUploadProps = {
@@ -53,52 +57,52 @@ async function convertPdfToImage(file: File): Promise<string> {
         if (file.size > 10 * 1024 * 1024) {
             throw new Error("PDFファイルが大きすぎます（10MB以下にしてください）");
         }
-        
+
         const arrayBuffer = await file.arrayBuffer();
-        
+
         // PDF.jsでドキュメントを読み込む
         const loadingTask = pdfjsLib.getDocument({
             data: arrayBuffer,
             verbosity: 0, // エラーログを抑制
         });
-        
+
         const pdf = await loadingTask.promise;
-        
+
         // ページ数の確認
         if (pdf.numPages === 0) {
             throw new Error("PDFにページが含まれていません");
         }
-        
+
         // 最初のページを取得
         const page = await pdf.getPage(1);
-        
+
         // レンダリング用のスケールを設定（高解像度で）
         const viewport = page.getViewport({ scale: 2.0 });
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d");
-        
+
         if (!context) {
             throw new Error("Canvas context could not be created");
         }
-        
+
         canvas.height = viewport.height;
         canvas.width = viewport.width;
-        
+
         // PDFページを画像としてレンダリング
         const renderContext = {
             canvasContext: context,
             viewport: viewport,
         };
-        
-        await page.render(renderContext).promise;
-        
+
+        await page.render(renderContext as any).promise;
+
         // Canvasをbase64画像に変換
         const imageDataUrl = canvas.toDataURL("image/png");
-        
+
         if (!imageDataUrl || imageDataUrl === "data:,") {
             throw new Error("画像の変換に失敗しました");
         }
-        
+
         return imageDataUrl;
     } catch (error: any) {
         // より詳細なエラーメッセージを提供
@@ -124,7 +128,7 @@ export function useFileUpload({ mode, onAnalysisSuccess }: UseFileUploadProps) {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { showSnackbar } = useSnackbar();
-    
+
     // PDF.jsワーカーの初期化を確認
     useEffect(() => {
         if (!workerSrcSet) {
@@ -139,13 +143,13 @@ export function useFileUpload({ mode, onAnalysisSuccess }: UseFileUploadProps) {
 
         try {
             let base64: string;
-            
+
             if (file.type.startsWith("image/")) {
                 // 画像ファイルの場合
                 setFileType("image");
                 const imageUrl = URL.createObjectURL(file);
                 setPreviewUrl(imageUrl);
-                
+
                 // 画像をbase64に変換
                 const reader = new FileReader();
                 base64 = await new Promise<string>((resolve, reject) => {
@@ -158,7 +162,7 @@ export function useFileUpload({ mode, onAnalysisSuccess }: UseFileUploadProps) {
                 setFileType("pdf");
                 setPreviewUrl(null);
                 setAnalysisStep("converting");
-                
+
                 try {
                     // PDFを画像に変換
                     base64 = await convertPdfToImage(file);
@@ -181,7 +185,7 @@ export function useFileUpload({ mode, onAnalysisSuccess }: UseFileUploadProps) {
                 setAnalysisStep("idle");
                 return;
             }
-            
+
             // AI解析APIの呼び出し
             setAnalysisStep("analyzing");
             try {
@@ -209,7 +213,7 @@ export function useFileUpload({ mode, onAnalysisSuccess }: UseFileUploadProps) {
                 if (err?.data?.error) {
                     // apiClientから返されたエラーデータを使用
                     errorMessage = err.data.error;
-                    if (err.data.details && process.env.NODE_ENV === "development") {
+                    if (err.data.details && import.meta.env.MODE === "development") {
                         console.error("詳細エラー:", err.data.details);
                     }
                 } else if (err?.message) {

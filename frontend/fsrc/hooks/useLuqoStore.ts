@@ -7,6 +7,8 @@ export type Score = LuqoScore;
 
 // キャッシュの有効期限: 1週間（7日間）
 const CACHE_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+// 自動更新の間隔: 1週間（7日間）ごとに自動更新
+const AUTO_UPDATE_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // キャッシュキーの生成
 const getCacheKey = (month: string) => `luqo.score.v1.${month}`;
@@ -103,7 +105,7 @@ type State = {
   isFixed: boolean;
   loading: boolean;
   error: string | null;
-  fetchScore: () => Promise<void>;
+  fetchScore: (opts?: { okrStartAt?: string; okrEndAt?: string }) => Promise<void>;
   finalizeScore: (opts?: { force?: boolean }) => Promise<void>;
   forceFetchScore: () => Promise<void>;
 };
@@ -154,22 +156,71 @@ export const useLuqoStore = create<State>((set, get) => ({
   isFixed: false,
   loading: false,
   error: null,
-  fetchScore: async () => {
+  fetchScore: async (opts) => {
     const { userId, month } = get();
     if (!userId) return;
 
     // まずキャッシュをチェック
     const cached = loadScoreCache(month);
     if (cached) {
-      console.log(`[LUQO] Using cached score for ${month} (cache age: ${Math.round((Date.now() - cached.timestamp) / (1000 * 60 * 60))} hours)`);
-      set({
-        score: cached.score,
-        monthlyScore: cached.score,
-        // 型エラー対策: reasoningがundefinedの場合は空文字にフォールバックする
-        monthlyEvaluation: { reasoning: cached.score.reasoning ?? "" },
-        isFixed: cached.isFixed,
-      });
-      return; // キャッシュがあればAPIを呼ばない
+      const cacheAge = Date.now() - cached.timestamp;
+      const cacheAgeHours = Math.round(cacheAge / (1000 * 60 * 60));
+      
+      // 確定済みスコアの場合は、キャッシュをそのまま使用（更新しない）
+      if (cached.isFixed) {
+        console.log(`[LUQO] Using fixed cached score for ${month} (cache age: ${cacheAgeHours} hours)`);
+        set({
+          score: cached.score,
+          monthlyScore: cached.score,
+          monthlyEvaluation: { reasoning: cached.score.reasoning ?? "" },
+          isFixed: cached.isFixed,
+        });
+        return; // 確定済みなので更新しない
+      }
+
+      // OKRの開始日（startAt）に合わせて「週の区切り」で更新する（プランB: 14日×3フェーズの中間/終端に揃う）
+      // 例: OKR開始Day0 → Day7/14/21/28/35/42 のタイミングで更新
+      const isCurrentMonth = month === getCurrentMonth();
+      const okrStartAt = opts?.okrStartAt;
+      const okrEndAt = opts?.okrEndAt;
+      if (isCurrentMonth && okrStartAt && okrEndAt) {
+        const startMs = new Date(okrStartAt).getTime();
+        const endMs = new Date(okrEndAt).getTime();
+        const nowMs = Date.now();
+        if (!Number.isNaN(startMs) && !Number.isNaN(endMs) && startMs < endMs && nowMs >= startMs && nowMs < endMs) {
+          const tickMs = AUTO_UPDATE_INTERVAL_MS; // 7日
+          const elapsed = Math.max(0, nowMs - startMs);
+          const currentTickStartMs = startMs + Math.floor(elapsed / tickMs) * tickMs;
+
+          if (cached.timestamp >= currentTickStartMs) {
+            console.log(`[LUQO] Using cached draft score for ${month} (aligned to OKR week tick, cache age: ${cacheAgeHours} hours)`);
+            set({
+              score: cached.score,
+              monthlyScore: cached.score,
+              monthlyEvaluation: { reasoning: cached.score.reasoning ?? "" },
+              isFixed: cached.isFixed,
+            });
+            return;
+          }
+
+          console.log(`[LUQO] OKR week tick reached for ${month}, fetching fresh score...`);
+        }
+      }
+      
+      // ドラフトスコアの場合、週1回（7日）ごとに自動更新
+      if (cacheAge < AUTO_UPDATE_INTERVAL_MS) {
+        console.log(`[LUQO] Using cached draft score for ${month} (cache age: ${cacheAgeHours} hours, will auto-update in ${Math.round((AUTO_UPDATE_INTERVAL_MS - cacheAge) / (1000 * 60 * 60 * 24))} days)`);
+        set({
+          score: cached.score,
+          monthlyScore: cached.score,
+          monthlyEvaluation: { reasoning: cached.score.reasoning ?? "" },
+          isFixed: cached.isFixed,
+        });
+        return; // まだ更新間隔に達していないのでキャッシュを使用
+      }
+      
+      // 週1回の更新タイミングに達した場合、バックグラウンドで更新
+      console.log(`[LUQO] Cache expired for ${month} (cache age: ${cacheAgeHours} hours), fetching fresh score...`);
     }
 
     set({ loading: true, error: null });

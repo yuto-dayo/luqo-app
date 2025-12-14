@@ -7,6 +7,7 @@ import { useRetroGameMode } from "../hooks/useRetroGameMode";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { useConfirm } from "../contexts/ConfirmDialogContext";
 import { Confetti } from "./Confetti"; // Correctly using named import
+import { RetroHPBar } from "./ui/RetroHPBar";
 
 // --- Logic Helpers from TimeSyncBanner ---
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -77,7 +78,7 @@ export const MissionControlCard: React.FC<Props> = ({ banditData, score, loading
     const [editHint, setEditHint] = useState("");
     const [editChangeReason, setEditChangeReason] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [checkAnimation, setCheckAnimation] = useState(false);
+
 
     // --- 1. Context Logic (Time/Phase) ---
     const timeContext = useMemo(() => {
@@ -141,13 +142,7 @@ export const MissionControlCard: React.FC<Props> = ({ banditData, score, loading
         }
     };
 
-    const handleCheckMission = () => {
-        // Micro-interaction: Animation + Effect
-        setCheckAnimation(true);
-        setTimeout(() => setCheckAnimation(false), 500);
-        showSnackbar("ミッション完了！スコアに反映されました (Simulation)", "success");
-        // TODO: Implement actual completion logic API call here if needed
-    };
+
 
     // --- Rendering ---
 
@@ -187,7 +182,7 @@ export const MissionControlCard: React.FC<Props> = ({ banditData, score, loading
 
             {/* 2. CORE ACTION */}
             <div className={styles.actionSection} style={{ "--mission-bg": THEME.bg, "--mission-on-bg": THEME.onBg } as React.CSSProperties}>
-                <button className={styles.editButton} onClick={handleOpenEditModal} title="ミッションを編集"><Icon name="edit" size={16} /></button>
+
 
                 <div className={styles.actionHeader}>
                     <h2 className={styles.actionTitle}>{action}</h2>
@@ -200,11 +195,12 @@ export const MissionControlCard: React.FC<Props> = ({ banditData, score, loading
                     </div>
 
                     <button
-                        className={`${styles.checkButton} ${checkAnimation ? styles.animate : ""}`}
+                        className={styles.iconButton}
                         style={{ "--mission-primary": THEME.primary } as React.CSSProperties}
-                        onClick={handleCheckMission}
+                        onClick={handleOpenEditModal}
+                        title="ミッションを変更"
                     >
-                        <Icon name="check" size={28} />
+                        <Icon name="edit" size={24} />
                     </button>
                 </div>
             </div>
@@ -212,11 +208,19 @@ export const MissionControlCard: React.FC<Props> = ({ banditData, score, loading
             {/* 3. FEEDBACK (Scores) */}
             <div className={styles.footer}>
                 <div className={styles.footerHeader}>LUQO Score</div>
-                <div className={styles.scoreGrid}>
-                    <ProgressRing value={score.LU} color="var(--color-lu-base, #0ea5e9)" iconName="learning" label="学習" isActive={focusDim === "LU"} />
-                    <ProgressRing value={score.Q} color="var(--color-q-base, #22c55e)" iconName="contribution" label="貢献" isActive={focusDim === "Q"} />
-                    <ProgressRing value={score.O} color="var(--color-o-base, #f97316)" iconName="innovation" label="革新" isActive={focusDim === "O"} />
-                </div>
+                {isRetroGameMode ? (
+                    <div className={styles.scoreGrid} style={{ flexDirection: 'column', gap: 24, padding: "0 12px" }}>
+                        <RetroHPBar value={score.LU} color="#00ffff" iconName="learning" label="学習" isActive={focusDim === "LU"} />
+                        <RetroHPBar value={score.Q} color="#00ff00" iconName="contribution" label="貢献" isActive={focusDim === "Q"} />
+                        <RetroHPBar value={score.O} color="#ff00ff" iconName="innovation" label="革新" isActive={focusDim === "O"} />
+                    </div>
+                ) : (
+                    <div className={styles.scoreGrid}>
+                        <ProgressRing value={score.LU} color="var(--color-lu-base, #0ea5e9)" iconName="learning" label="学習" isActive={focusDim === "LU"} />
+                        <ProgressRing value={score.Q} color="var(--color-q-base, #22c55e)" iconName="contribution" label="貢献" isActive={focusDim === "Q"} />
+                        <ProgressRing value={score.O} color="var(--color-o-base, #f97316)" iconName="innovation" label="革新" isActive={focusDim === "O"} />
+                    </div>
+                )}
             </div>
 
             {/* Edit Modal (Copied logic simplfied for brevity, assuming standard modal) */}

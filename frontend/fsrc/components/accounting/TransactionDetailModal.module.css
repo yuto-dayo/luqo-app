@@ -1,0 +1,255 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal {
+  background-color: var(--color-surface, #fff);
+  border-radius: 24px;
+  padding: 0;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-main, #1e293b);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted, #64748b);
+  border-radius: 8px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.closeButton:hover {
+  background-color: var(--color-surface-secondary, #f1f5f9);
+  color: var(--color-text-main, #1e293b);
+}
+
+.content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.loading,
+.error {
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--color-text-muted, #64748b);
+}
+
+.error {
+  color: var(--color-error, #ef4444);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border, #e2e8f0);
+  border-top-color: var(--color-primary, #2563eb);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #475569);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.infoLabel {
+  font-size: 12px;
+  color: var(--color-text-muted, #64748b);
+  font-weight: 500;
+}
+
+.infoValue {
+  font-size: 14px;
+  color: var(--color-text-main, #1e293b);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.amount {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.amountSale {
+  color: var(--color-success, #10b981);
+}
+
+.amountExpense {
+  color: var(--color-error, #ef4444);
+}
+
+.description {
+  padding: 12px;
+  background: var(--color-surface-secondary, #f1f5f9);
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--color-text-main, #1e293b);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.itemCard {
+  padding: 12px;
+  background: var(--color-surface-secondary, #f1f5f9);
+  border-radius: 12px;
+}
+
+.itemName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main, #1e293b);
+  margin-bottom: 8px;
+}
+
+.itemDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--color-text-muted, #64748b);
+}
+
+.itemDetail {
+  display: inline-block;
+}
+
+.footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border, #e2e8f0);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.closeButtonFooter {
+  padding: 10px 24px;
+  border-radius: 100px;
+  border: none;
+  background: var(--color-primary, #2563eb);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.closeButtonFooter:hover {
+  background: var(--color-primary-dark, #1d4ed8);
+}
+
+/* Retro Game Mode */
+:global(.retro-game) .overlay {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+:global(.retro-game) .modal {
+  border: 3px solid var(--color-text-main, #2d2d2d);
+  box-shadow: 4px 4px 0px var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+}
+
+:global(.retro-game) .header {
+  border-bottom: 2px solid var(--color-text-main, #2d2d2d);
+}
+
+:global(.retro-game) .footer {
+  border-top: 2px solid var(--color-text-main, #2d2d2d);
+}
+
+:global(.retro-game) .closeButtonFooter {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+}
+
+:global(.retro-game) .itemCard {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+}
+
+:global(.retro-game) .description {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+}
+
+
+
+
+
+
+

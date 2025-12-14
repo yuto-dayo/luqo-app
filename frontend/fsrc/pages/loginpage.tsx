@@ -38,6 +38,14 @@ export default function LoginPage() {
       // アクセストークンを保存
       localStorage.setItem("session_token", token);
       
+      // Supabaseクライアントにセッションを設定（Realtime接続に必要）
+      if (data.session) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+      }
+      
       // 認証状態の変更を通知（useAuthフックが検知できるように）
       window.dispatchEvent(new Event("auth-changed"));
       

@@ -264,7 +264,7 @@ const ProgressRing = ({
 
 export const LuqoSummary: React.FC<LuqoSummaryProps> = ({ score, activeDimension }) => {
   const { LU: lu, Q: q, O: o } = score;
-  useIsFixed(); // state consumption to keep in sync; display is fixed badge below
+  const isFixed = useIsFixed(); // スコアが確定済みかどうか
   const forceFetchScore = useForceFetchScore();
   const { confirm } = useConfirm();
   const { showSnackbar } = useSnackbar();
@@ -274,7 +274,7 @@ export const LuqoSummary: React.FC<LuqoSummaryProps> = ({ score, activeDimension
   const handleManualUpdate = async () => {
     if (await confirm("スコアを最新のログに基づいて再計算（更新）しますか？\n※現在の評価結果は上書きされます。")) {
       await forceFetchScore();
-      showSnackbar("スコアを更新しました！ 🔄", "success");
+      showSnackbar("スコアを更新しました", "success");
     }
   };
 
@@ -313,7 +313,6 @@ export const LuqoSummary: React.FC<LuqoSummaryProps> = ({ score, activeDimension
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
         <div>
           <p style={{ fontSize: "11px", fontWeight: "700", color: "#64748b", letterSpacing: "0.4px", textTransform: "uppercase", margin: 0 }}>Current Status</p>
-          <h2 style={{ fontSize: "18px", fontWeight: "700", margin: 0 }}>LUQO Score</h2>
         </div>
         <button
           onClick={handleManualUpdate}
@@ -324,24 +323,26 @@ export const LuqoSummary: React.FC<LuqoSummaryProps> = ({ score, activeDimension
         </button>
       </div>
 
-      <div style={{ marginBottom: 24 }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 11,
-            background: "#0f172a",
-            color: "white",
-            padding: "4px 10px",
-            borderRadius: 6,
-            fontWeight: 600,
-          }}
-        >
-          <Icon name="lock" size={12} />
-          FIXED
+      {isFixed && (
+        <div style={{ marginBottom: 24 }}>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 11,
+              background: "#0f172a",
+              color: "white",
+              padding: "4px 10px",
+              borderRadius: 6,
+              fontWeight: 600,
+            }}
+          >
+            <Icon name="lock" size={12} />
+            FIXED
+          </div>
         </div>
-      </div>
+      )}
 
       
       {/* 修正後のレイアウト実装 */}

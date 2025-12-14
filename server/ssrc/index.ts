@@ -21,6 +21,7 @@ import accountingRouter from "./routes/accounting";
 import masterRouter from "./routes/master";
 import userRouter from "./routes/user";
 import { supabaseAdmin } from "./services/supabaseClient";
+import { startScheduler } from "./scheduler";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
@@ -54,24 +55,24 @@ app.get("/health", async (_req, res) => {
       .from("profiles")
       .select("id")
       .limit(1);
-    
+
     if (error) {
-      return res.status(503).json({ 
-        ok: false, 
+      return res.status(503).json({
+        ok: false,
         error: "Supabase connection failed",
         details: error.message,
         code: error.code
       });
     }
-    
-    res.json({ 
-      ok: true, 
+
+    res.json({
+      ok: true,
       supabase: "connected",
-      url: process.env.SUPABASE_URL 
+      url: process.env.SUPABASE_URL
     });
   } catch (err: any) {
-    res.status(503).json({ 
-      ok: false, 
+    res.status(503).json({
+      ok: false,
       error: "Supabase connection timeout",
       details: err?.message || "Unknown error"
     });
@@ -105,6 +106,9 @@ app.use("/api/v1/notifications", notificationsRouter);
 app.use("/api/v1/accounting", accountingRouter);
 app.use("/api/v1/master", masterRouter);
 app.use("/api/v1/user", userRouter);
+
+// スケジューラ起動
+startScheduler();
 
 // 外部からアクセス可能にする（スマホから接続するために必要）
 app.listen(PORT, "0.0.0.0", () => {

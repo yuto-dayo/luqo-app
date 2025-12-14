@@ -507,8 +507,9 @@ masterRouter.post("/categories/propose-weight-change", async (req, res) => {
 
     // AI審査
     const aiResultText = await runPrompt(
-      "category_weight_audit.prompt",
+      "category_audit.prompt",
       JSON.stringify({
+        action: "WEIGHT_CHANGE",
         categoryLabel: category.label,
         currentWeight,
         newWeight: validatedWeight,

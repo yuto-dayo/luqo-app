@@ -4,6 +4,7 @@ import { proposeOkrChange, type BanditSuggestResponse } from "../lib/api";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { useConfirm } from "../contexts/ConfirmDialogContext";
 import { useRetroGameMode } from "../hooks/useRetroGameMode";
+import styles from "./KpiPanel.module.css";
 
 type Props = {
   banditData?: BanditSuggestResponse | null;
@@ -115,7 +116,7 @@ export const KpiPanel: React.FC<Props> = ({ banditData, loading, onOkrUpdated })
 
         showSnackbar("OKR変更を提案しました！承認待ちです。", "success");
         handleCloseProposalModal();
-        
+
         // 親コンポーネントに更新を通知
         if (onOkrUpdated) {
           onOkrUpdated();
@@ -129,234 +130,70 @@ export const KpiPanel: React.FC<Props> = ({ banditData, loading, onOkrUpdated })
     }
   };
 
-  // レトロゲームモード用の色設定
-  const cardBg = isRetroGameMode ? "#1a1a2e" : "white";
-  const sectionBg = isRetroGameMode ? "#0a0a0f" : "#f8fafc";
-  const sectionBorder = isRetroGameMode ? "#00ffff" : "#e2e8f0";
-  const badgeBg = isRetroGameMode ? "#0a0a0f" : "white";
-  const badgeColor = isRetroGameMode ? "#00ff88" : "#64748b";
-  const textColor = isRetroGameMode ? "#00ffff" : "#1e293b";
-  const subTextColor = isRetroGameMode ? "#00ff88" : "#64748b";
-  const labelColor = isRetroGameMode ? "#00ff00" : "#64748b";
+  // レトロゲームモード用の色設定 (Modal uses these, keeping for compatibility or refactor later)
+  // ... (keeping modal logic separate or if it was used in lines 132-141, we remove those common vars as they are now in CSS)
 
   return (
     <section
-      className="card"
+      className={styles.card}
       style={{
-        background: cardBg,
-        overflow: "hidden",
-        position: "relative",
-        borderLeft: `6px solid ${isRetroGameMode ? "#00ffff" : okr.themeColor}`,
-        padding: 0,
-        boxShadow: isRetroGameMode
-          ? "0 0 10px rgba(0, 255, 255, 0.5), 4px 4px 0px #000000"
-          : "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-      }}
+        "--theme-color": isRetroGameMode ? "#00ffff" : okr.themeColor,
+      } as React.CSSProperties}
     >
-      <div
-        style={{
-          position: "absolute",
-          right: -20,
-          bottom: -20,
-          fontSize: "120px",
-          opacity: 0.1,
-          pointerEvents: "none",
-          filter: "grayscale(100%)",
-          transform: "rotate(-15deg)",
-        }}
-      >
+      <div className={styles.watermark}>
         {okr.iconChar}
       </div>
 
-      <div style={{ padding: "clamp(1rem, 3vw, 1.5rem)" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: "16px",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 11,
-                fontWeight: 800,
-                color: okr.themeColor,
-                background: `${okr.themeColor}15`,
-                padding: "4px 10px",
-                borderRadius: 99,
-                marginBottom: 8,
-                letterSpacing: "0.5px",
-              }}
-            >
-              <span style={{ fontSize: 14 }}>{okr.iconChar}</span> CURRENT SEASON
-              OKR
+      <div className={styles.content}>
+        <div className={styles.header}>
+          <div className={styles.headerLeft}>
+            <div className={styles.badge}>
+              <span style={{ fontSize: 14 }}>{okr.iconChar}</span> CURRENT SEASON OKR
               {seasonDays !== null && (
-                <span
-                  style={{
-                    marginLeft: 8,
-                    background: badgeBg,
-                    padding: "2px 8px",
-                    borderRadius: isRetroGameMode ? "0" : "4px",
-                    border: isRetroGameMode ? "1px solid #00ffff" : "none",
-                    color: badgeColor,
-                    fontSize: "10px",
-                    fontWeight: 700,
-                    boxShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 255, 0.3)" : "none",
-                  }}
-                >
+                <span className={styles.seasonBadge}>
                   あと {seasonDays} 日
                 </span>
               )}
             </div>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: "clamp(1.125rem, 4vw, 1.5rem)",
-                fontWeight: 800,
-                color: textColor,
-                lineHeight: 1.3,
-                textShadow: isRetroGameMode ? "0 0 10px rgba(0, 255, 255, 0.8)" : "none",
-              }}
-            >
+            <h2 className={styles.objectiveTitle}>
               {okr.objective}
             </h2>
           </div>
           {/* 編集ボタン */}
           <button
             onClick={handleOpenProposalModal}
-            style={{
-              width: "clamp(36px, 6vw, 40px)",
-              height: "clamp(36px, 6vw, 40px)",
-              borderRadius: "8px",
-              background: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-              color: okr.themeColor,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = okr.themeColor;
-              e.currentTarget.style.color = "#ffffff";
-              e.currentTarget.style.transform = "scale(1.05)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "var(--color-surface)";
-              e.currentTarget.style.color = okr.themeColor;
-              e.currentTarget.style.transform = "scale(1)";
-            }}
+            className={styles.editButton}
             title="OKRを変更申請"
           >
             <Icon name="edit" size={18} />
           </button>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr",
-            gap: "16px",
-            marginBottom: "20px",
-          }}
-        >
-          <div
-            style={{
-              background: sectionBg,
-              padding: "clamp(0.75rem, 2vw, 1rem)",
-              borderRadius: isRetroGameMode ? "0" : "12px",
-              border: `2px solid ${sectionBorder}`,
-              boxShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 255, 0.3)" : "none",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "clamp(0.625rem, 1.5vw, 0.6875rem)",
-                color: labelColor,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                marginBottom: 4,
-                textShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 0, 0.6)" : "none",
-              }}
-            >
+        <div className={styles.grid}>
+          <div className={styles.section}>
+            <div className={styles.sectionLabel}>
               Key Result (必達目標)
             </div>
-            <div
-              style={{
-                fontSize: "clamp(1rem, 3vw, 1.125rem)",
-                fontWeight: 700,
-                color: isRetroGameMode ? "#00ffff" : okr.themeColor,
-                textShadow: isRetroGameMode ? "0 0 8px rgba(0, 255, 255, 0.6)" : "none",
-              }}
-            >
+            <div className={styles.keyResultText}>
               {okr.keyResult}
             </div>
           </div>
 
-          <div
-            style={{
-              background: sectionBg,
-              padding: "clamp(0.75rem, 2vw, 1rem)",
-              borderRadius: isRetroGameMode ? "0" : "12px",
-              border: `2px solid ${sectionBorder}`,
-              boxShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 255, 0.3)" : "none",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "clamp(0.625rem, 1.5vw, 0.6875rem)",
-                color: labelColor,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                marginBottom: 4,
-                textShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 0, 0.6)" : "none",
-              }}
-            >
+          <div className={styles.section}>
+            <div className={styles.sectionLabel}>
               Strategy (具体策)
             </div>
-            <div
-              style={{
-                fontSize: "clamp(0.875rem, 2vw, 0.9375rem)",
-                fontWeight: 500,
-                color: isRetroGameMode ? "#00ffff" : "#334155",
-                textShadow: isRetroGameMode ? "0 0 8px rgba(0, 255, 255, 0.6)" : "none",
-              }}
-            >
+            <div className={styles.strategyText}>
               {okr.strategy}
             </div>
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            alignItems: "flex-start",
-            padding: "12px",
-            background: `${okr.themeColor}08`,
-            borderRadius: "8px",
-          }}
-        >
-          <div style={{ marginTop: 2, color: okr.themeColor }}>
+        <div className={styles.descriptionBox}>
+          <div className={styles.infoIcon}>
             <Icon name="info" size={18} />
           </div>
-          <p
-            style={{
-              margin: 0,
-              fontSize: "clamp(0.8125rem, 2vw, 0.875rem)",
-              color: "#475569",
-              lineHeight: 1.6,
-              fontWeight: 500,
-              fontStyle: "italic",
-            }}
-          >
+          <p className={styles.descriptionText}>
             "{description}"
           </p>
         </div>

@@ -4,6 +4,8 @@ import { apiClient } from "../lib/apiClient";
 import { SalesInputModal } from "../components/accounting/SalesInputModal";
 import { InvoiceGeneratorModal } from "../components/accounting/InvoiceGeneratorModal";
 import { ExpenseApprovalModal } from "../components/accounting/ExpenseApprovalModal";
+import { VoidTransactionModal } from "../components/accounting/VoidTransactionModal";
+import { TransactionDetailModal } from "../components/accounting/TransactionDetailModal";
 import { DateRangePicker } from "../components/DateRangePicker";
 import type { AccountingDashboardData, HistoryItem } from "../types/accounting";
 import { Icon } from "../components/ui/Icon";
@@ -14,6 +16,7 @@ import { useAccountingRealtime } from "../hooks/useAccountingRealtime";
 import { fetchUserProfiles } from "../lib/api";
 import { useRetroGameMode } from "../hooks/useRetroGameMode";
 import { loadUserNamesCache, saveUserNamesCache } from "../lib/cacheUtils";
+import styles from "./AccountingPage.module.css";
 
 // 日付フォーマット用ヘルパー
 const formatDateLabel = (dateStr: string) => {
@@ -47,13 +50,16 @@ export default function AccountingPage() {
   const [isRefreshing, setIsRefreshing] = useState(false); // リアルタイム更新時のローディング（サイレント）
   const [userNames, setUserNames] = useState<Record<string, string>>({}); // userId -> name のマップ
   const [voidModal, setVoidModal] = useState<{ isOpen: boolean; item: HistoryItem | null }>({ isOpen: false, item: null });
-  const [voidReason, setVoidReason] = useState("");
+  const [detailModal, setDetailModal] = useState<{ isOpen: boolean; transactionId: string | null }>({ isOpen: false, transactionId: null });
   
   // フィルターと期間設定のstate
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [showDatePicker, setShowDatePicker] = useState(false);
+  
+  // FAB展開状態
+  const [isFabExpanded, setIsFabExpanded] = useState(false);
   
   const { confirm } = useConfirm();
   const { showSnackbar } = useSnackbar();
@@ -235,32 +241,24 @@ export default function AccountingPage() {
   const handleDelete = async (item: HistoryItem) => {
     // 取り消し理由入力モーダルを開く
     setVoidModal({ isOpen: true, item });
-    setVoidReason("");
   };
 
-  const handleVoidConfirm = async () => {
+  const handleVoidConfirm = async (reason: string) => {
     if (!voidModal.item) return;
-    
-    // 取り消し理由のバリデーション
-    if (!voidReason.trim()) {
-      showSnackbar("取り消し理由を入力してください", "error");
-      return;
-    }
 
-    const message = `この取引を逆仕訳（取り消し）しますか？\n\n${voidModal.item.date}\n${voidModal.item.title}\n¥${Math.abs(voidModal.item.amount).toLocaleString()}\n\n理由: ${voidReason}\n\n※獲得したOpsポイントも返還されます。\n※元の取引は削除されず、逆仕訳として記録されます。`;
+    const message = `この取引を逆仕訳（取り消し）しますか？\n\n${voidModal.item.date}\n${voidModal.item.title}\n¥${Math.abs(voidModal.item.amount).toLocaleString()}\n\n理由: ${reason}\n\n※獲得したOpsポイントも返還されます。\n※元の取引は削除されず、逆仕訳として記録されます。`;
 
     if (await confirm(message)) {
       try {
         setLoading(true);
         const res = await apiClient.post<{ ok: boolean, message: string }>(
           "/api/v1/accounting/void",
-          { eventId: voidModal.item.id, reason: voidReason.trim() }
+          { eventId: voidModal.item.id, reason }
         );
 
         if (res.ok) {
           showSnackbar("逆仕訳（取り消し）を記録しました", "info");
           setVoidModal({ isOpen: false, item: null });
-          setVoidReason("");
           // 取り消し後は即座にデータを再取得（リアルタイム更新もあるが、確実に反映させるため）
           void fetchData(false);
         }
@@ -268,6 +266,7 @@ export default function AccountingPage() {
         console.error(e);
         const errorMessage = e?.response?.data?.error || "取り消しに失敗しました";
         showSnackbar(errorMessage, "error");
+        throw e; // モーダル側でエラーハンドリングできるように
       } finally {
         setLoading(false);
       }
@@ -275,124 +274,86 @@ export default function AccountingPage() {
   };
 
   return (
-    <div className="page" style={{ paddingBottom: 80 }}>
+    <div className={`page ${styles.page}`}>
 
-      {loading && !data && <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>Loading numbers...</div>}
+      {loading && !data && <div className={styles.loadingState}>Loading numbers...</div>}
 
       {data && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px", padding: "16px 16px 0" }}>
+        <div className={styles.section}>
           {/* PL Card */}
-          <section className="card" style={{ background: "#1e293b", color: "white", padding: "24px", borderRadius: "24px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 24 }}>
+          <section className={`card ${styles.plCard}`}>
+            <div className={styles.plHeader}>
               <div>
-                <div style={{ fontSize: "12px", opacity: 0.7, marginBottom: 4 }}>今月の分配原資 (予想)</div>
-                <div style={{ fontSize: "32px", fontWeight: 800, lineHeight: 1 }}>
+                <div className={styles.plTitle}>今月の分配原資 (予想)</div>
+                <div className={styles.plAmount}>
                   ¥{data.pl.distributable.toLocaleString()}
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: "12px", opacity: 0.7 }}>暫定利益</div>
-                <div style={{ fontSize: "16px", fontWeight: 700 }}>¥{data.pl.profit.toLocaleString()}</div>
+                <div className={styles.plProfitLabel}>暫定利益</div>
+                <div className={styles.plProfitValue}>¥{data.pl.profit.toLocaleString()}</div>
               </div>
             </div>
 
-            <div style={{ display: "flex", height: "12px", borderRadius: "6px", overflow: "hidden", marginBottom: 12 }}>
-              <div style={{ flex: data.pl.sales, background: "#38bdf8" }} />
-              <div style={{ flex: data.pl.expenses, background: "#f43f5e" }} />
+            <div className={styles.plBar}>
+              <div className={styles.plBarSales} style={{ flex: data.pl.sales }} />
+              <div className={styles.plBarExpenses} style={{ flex: data.pl.expenses }} />
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: 600 }}>
-              <span style={{ color: "#38bdf8" }}>売上: ¥{data.pl.sales.toLocaleString()}</span>
-              <span style={{ color: "#f43f5e" }}>経費: ¥{data.pl.expenses.toLocaleString()}</span>
+            <div className={styles.plSummary}>
+              <span className={styles.plSummarySales}>売上: ¥{data.pl.sales.toLocaleString()}</span>
+              <span className={styles.plSummaryExpenses}>経費: ¥{data.pl.expenses.toLocaleString()}</span>
             </div>
           </section>
 
           {/* Ops Ranking */}
           <section>
-            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#475569", marginBottom: 12, display: "flex", alignItems: "center", gap: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <h3 className={styles.sectionTitle}>
               <Icon name="star" size={16} color="#eab308" />
               Ops Ranking
             </h3>
-            <div style={{ display: "flex", overflowX: "auto", gap: "12px", paddingBottom: "4px" }}>
+            <div className={styles.opsRanking}>
               {data.opsRanking.map((rank, i) => (
-                <div key={rank.userId} className="card" style={{ padding: "12px 16px", minWidth: "140px", display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
-                  <div style={{
-                    width: 28, height: 28, borderRadius: "50%",
-                    background: i === 0 ? "#fef9c3" : "#f1f5f9",
-                    color: i === 0 ? "#ca8a04" : "#64748b",
-                    display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "12px"
-                  }}>
+                <div key={rank.userId} className={`card ${styles.opsRankingCard}`}>
+                  <div className={i === 0 ? styles.opsRankingBadgeFirst : styles.opsRankingBadgeOther}>
                     {i + 1}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: "13px", color: "#1e293b" }}>{userNames[rank.userId] || rank.userId}</div>
-                    <div style={{ fontWeight: 800, fontSize: "14px", color: "#0f172a" }}>{rank.points} Pt</div>
+                    <div className={styles.opsRankingName}>{userNames[rank.userId] || rank.userId}</div>
+                    <div className={styles.opsRankingPoints}>{rank.points} Pt</div>
                   </div>
                 </div>
               ))}
               {data.opsRanking.length === 0 && (
-                <div style={{ textAlign: "center", padding: 12, color: "#94a3b8", fontSize: "12px", width: "100%" }}>まだランキングデータがありません</div>
+                <div className={styles.opsRankingEmpty}>まだランキングデータがありません</div>
               )}
             </div>
           </section>
 
           {/* History (Grouped) */}
           <section>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: "12px" }}>
-              <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#475569", display: "flex", alignItems: "center", gap: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <div className={styles.historyHeader}>
+              <h3 className={styles.sectionTitle}>
                 <Icon name="info" size={16} color="#64748b" />
                 Recent History
               </h3>
               
               {/* フィルタートグルスイッチ */}
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <div className={styles.filterButtons}>
                 <button
                   onClick={() => setFilterType("all")}
-                  style={{
-                    padding: "6px 12px",
-                    fontSize: "12px",
-                    fontWeight: filterType === "all" ? 700 : 600,
-                    borderRadius: "8px",
-                    border: "1px solid",
-                    borderColor: filterType === "all" ? "#2563eb" : "#e5e7eb",
-                    background: filterType === "all" ? "#2563eb" : "white",
-                    color: filterType === "all" ? "white" : "#64748b",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
+                  className={filterType === "all" ? styles.filterButtonAll : styles.filterButtonAllInactive}
                 >
                   全て
                 </button>
                 <button
                   onClick={() => setFilterType("sales")}
-                  style={{
-                    padding: "6px 12px",
-                    fontSize: "12px",
-                    fontWeight: filterType === "sales" ? 700 : 600,
-                    borderRadius: "8px",
-                    border: "1px solid",
-                    borderColor: filterType === "sales" ? "#0284c7" : "#e5e7eb",
-                    background: filterType === "sales" ? "#0284c7" : "white",
-                    color: filterType === "sales" ? "white" : "#64748b",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
+                  className={filterType === "sales" ? styles.filterButtonSales : styles.filterButtonSalesInactive}
                 >
                   売上のみ
                 </button>
                 <button
                   onClick={() => setFilterType("expenses")}
-                  style={{
-                    padding: "6px 12px",
-                    fontSize: "12px",
-                    fontWeight: filterType === "expenses" ? 700 : 600,
-                    borderRadius: "8px",
-                    border: "1px solid",
-                    borderColor: filterType === "expenses" ? "#ef4444" : "#e5e7eb",
-                    background: filterType === "expenses" ? "#ef4444" : "white",
-                    color: filterType === "expenses" ? "white" : "#64748b",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
+                  className={filterType === "expenses" ? styles.filterButtonExpenses : styles.filterButtonExpensesInactive}
                 >
                   経費のみ
                 </button>
@@ -400,24 +361,9 @@ export default function AccountingPage() {
             </div>
 
             {/* 期間設定UI */}
-            <div style={{ 
-              marginBottom: 16, 
-              padding: "16px", 
-              background: isRetroGameMode ? "#1a1a2e" : "#f8fafc", 
-              borderRadius: isRetroGameMode ? "0" : "12px", 
-              border: isRetroGameMode ? "2px solid #00ffff" : "1px solid #e2e8f0",
-              boxShadow: isRetroGameMode ? "0 0 10px rgba(0, 255, 255, 0.5), 4px 4px 0px #000000" : "none"
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div style={{ 
-                  fontSize: "13px", 
-                  fontWeight: 600, 
-                  color: isRetroGameMode ? "#00ffff" : "#475569", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  gap: 6,
-                  textShadow: isRetroGameMode ? "0 0 8px rgba(0, 255, 255, 0.8)" : "none"
-                }}>
+            <div className={styles.datePickerContainer}>
+              <div className={styles.datePickerHeader}>
+                <div className={styles.datePickerTitle}>
                   <Icon name="timer" size={14} color={isRetroGameMode ? "#00ffff" : "#64748b"} />
                   期間設定
                 </div>
@@ -427,17 +373,7 @@ export default function AccountingPage() {
                       setStartDate("");
                       setEndDate("");
                     }}
-                    style={{
-                      padding: "4px 8px",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      borderRadius: isRetroGameMode ? "0" : "6px",
-                      border: isRetroGameMode ? "2px solid #00ffff" : "1px solid #cbd5e1",
-                      background: isRetroGameMode ? "#0a0a0f" : "white",
-                      color: isRetroGameMode ? "#00ffff" : "#64748b",
-                      cursor: "pointer",
-                      boxShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 255, 0.3)" : "none",
-                    }}
+                    className={styles.datePickerClearButton}
                   >
                     クリア
                   </button>
@@ -454,19 +390,7 @@ export default function AccountingPage() {
 
             {/* フィルター適用中の表示 */}
             {(filterType !== "all" || startDate || endDate) && (
-              <div style={{ 
-                marginBottom: 12, 
-                padding: "8px 12px", 
-                background: isRetroGameMode ? "#0a0a0f" : "#eff6ff", 
-                borderRadius: isRetroGameMode ? "0" : "8px",
-                border: isRetroGameMode ? "2px solid #00ffff" : "none",
-                boxShadow: isRetroGameMode ? "0 0 5px rgba(0, 255, 255, 0.3)" : "none",
-                fontSize: "12px", 
-                color: isRetroGameMode ? "#00ff88" : "#1e40af",
-                display: "flex",
-                alignItems: "center",
-                gap: 8
-              }}>
+              <div className={styles.filterInfo}>
                 <Icon name="search" size={14} color={isRetroGameMode ? "#00ff88" : "#1e40af"} />
                 <span>
                   {filteredHistory.length}件の履歴を表示中
@@ -476,69 +400,50 @@ export default function AccountingPage() {
               </div>
             )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            <div className={styles.historyGroups}>
               {groupedHistory.map((group) => (
-                <div key={group.title}>
+                <div key={group.title} className={styles.historyGroup}>
                   {/* 日付セクションヘッダー */}
-                  <div style={{ 
-                    fontSize: "13px", fontWeight: 700, color: "#94a3b8", 
-                    marginBottom: "8px", paddingLeft: "4px",
-                    position: "sticky", top: 64, zIndex: 10, 
-                    // 背景を透過させつつ、文字が読みやすいように工夫 (Glassmorphism)
-                    textShadow: "0 2px 4px rgba(255,255,255,0.8)"
-                  }}>
+                  <div className={styles.historyGroupTitle}>
                     {group.title}
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div className={styles.historyItems}>
                     {group.items.map((item) => {
                       const isSale = item.kind === "sale";
                       const sign = isSale ? "+" : "-";
-                      const color = isSale ? "#0284c7" : "#ef4444";
                       const isNegative = item.amount < 0;
 
                       return (
                         <div
                           key={item.id}
-                          className="card"
-                          style={{
-                            padding: "16px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            borderLeft: `4px solid ${color}`,
-                            opacity: isNegative ? 0.6 : 1,
-                            background: isNegative ? "#f3f4f6" : "white",
-                            position: "relative",
-                            overflow: "hidden"
-                          }}
+                          className={`card ${styles.historyItem} ${isSale ? styles.historyItemSale : styles.historyItemExpense} ${isNegative ? styles.historyItemNegative : ""}`}
+                          onClick={() => setDetailModal({ isOpen: true, transactionId: item.id })}
+                          style={{ cursor: "pointer" }}
                         >
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b", display: "flex", alignItems: "center", gap: "8px" }}>
-                              {isNegative && <span style={{ fontSize: "10px", background: "#94a3b8", color: "white", padding: "2px 6px", borderRadius: "4px" }}>訂正</span>}
+                          <div className={styles.historyItemContent}>
+                            <div className={styles.historyItemTitle}>
+                              {isNegative && <span className={styles.historyItemBadge}>訂正</span>}
                               {item.title}
                             </div>
-                            <div style={{ fontSize: "11px", color: "#64748b", marginTop: 2 }}>
+                            <div className={styles.historyItemCategory}>
                               {item.category ? `${item.category}` : "売上"}
-                              {item.status === "pending_vote" && <span style={{ color: "#f59e0b", fontWeight: 700, marginLeft: 6 }}>⚠️ 審議中</span>}
+                              {item.status === "pending_vote" && <span className={styles.historyItemPending}>⚠️ 審議中</span>}
                             </div>
                           </div>
 
-                          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                            <div style={{ fontSize: "16px", fontWeight: 700, color: isNegative ? "#64748b" : color }}>
+                          <div className={styles.historyItemActions}>
+                            <div className={`${styles.historyItemAmount} ${isNegative ? styles.historyItemAmountNegative : isSale ? styles.historyItemAmountSale : styles.historyItemAmountExpense}`}>
                               {item.amount < 0 ? "" : sign}¥{Math.abs(item.amount).toLocaleString()}
                             </div>
 
                             {!isNegative && (
                               <button
-                                onClick={() => handleDelete(item)}
-                                style={{
-                                  border: "none", background: "transparent", color: "#cbd5e1",
-                                  cursor: "pointer", padding: "8px", display: "flex", alignItems: "center",
-                                  transition: "color 0.2s"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(item);
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"}
-                                onMouseLeave={(e) => e.currentTarget.style.color = "#cbd5e1"}
+                                className={styles.historyItemDeleteButton}
                                 aria-label="取り消し"
                               >
                                 <Icon name="trash" size={18} />
@@ -553,11 +458,11 @@ export default function AccountingPage() {
               ))}
 
               {groupedHistory.length === 0 && (
-                <div style={{ textAlign: "center", padding: 40, color: "#94a3b8", fontSize: "13px", background: "#f1f5f9", borderRadius: "16px" }}>
+                <div className={styles.historyEmpty}>
                   {(filterType !== "all" || startDate || endDate) ? (
                     <>
-                      <div style={{ marginBottom: 8, fontWeight: 600 }}>該当する履歴が見つかりませんでした</div>
-                      <div style={{ fontSize: "11px", opacity: 0.8 }}>
+                      <div className={styles.historyEmptyTitle}>該当する履歴が見つかりませんでした</div>
+                      <div className={styles.historyEmptySubtitle}>
                         フィルター条件を変更してください
                       </div>
                     </>
@@ -571,65 +476,56 @@ export default function AccountingPage() {
         </div>
       )}
 
-      {/* 固定ボタン - Portalでbody直下に配置（モーダルが開いている時は非表示） */}
+      {/* FAB Menu - Portalでbody直下に配置（モーダルが開いている時は非表示） */}
       {typeof document !== "undefined" && !isAnyModalOpen &&
         createPortal(
-          <div style={{
-            position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)",
-            display: "flex", gap: "12px", zIndex: 9990,
-            maxWidth: "calc(100vw - 48px)", // 画面端との余白を確保
-            padding: "0 12px" // 左右の余白を追加
-          }}>
+          <div className={`${styles.fabMenu} ${isFabExpanded ? styles.fabMenuExpanded : ""}`}>
+            {/* 子FABボタン */}
             <button
-              onClick={() => setIsInvoiceModalOpen(true)}
-              style={{
-                height: "56px", padding: "0 32px", borderRadius: "28px",
-                background: "#2563eb", color: "white", border: "none",
-                boxShadow: "0 8px 20px rgba(37, 99, 235, 0.4)",
-                display: "flex", alignItems: "center", gap: "12px",
-                fontSize: "16px", fontWeight: 700, cursor: "pointer",
-                transition: "transform 0.2s",
-                whiteSpace: "nowrap" // テキストの折り返しを防止
+              onClick={() => {
+                setIsInvoiceModalOpen(true);
+                setIsFabExpanded(false);
               }}
-              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
-              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+              className={`${styles.fabChild} ${styles.fabChildInvoice} ${isFabExpanded ? styles.fabChildVisible : ""}`}
+              style={{ '--index': 0 } as React.CSSProperties}
+              aria-label="請求書生成"
             >
-              <Icon name="document" size={20} color="white" />
-              請求書生成
+              <Icon name="document" size={24} color="white" />
             </button>
             <button
-              onClick={() => setIsModalOpen(true)}
-              style={{
-                height: "56px", padding: "0 32px", borderRadius: "28px",
-                background: "#0f172a", color: "white", border: "none",
-                boxShadow: "0 8px 20px rgba(15, 23, 42, 0.4)",
-                display: "flex", alignItems: "center", gap: "12px",
-                fontSize: "16px", fontWeight: 700, cursor: "pointer",
-                transition: "transform 0.2s",
-                whiteSpace: "nowrap" // テキストの折り返しを防止
+              onClick={() => {
+                setIsModalOpen(true);
+                setIsFabExpanded(false);
               }}
-              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
-              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+              className={`${styles.fabChild} ${styles.fabChildSales} ${isFabExpanded ? styles.fabChildVisible : ""}`}
+              style={{ '--index': 1 } as React.CSSProperties}
+              aria-label="売上・経費登録"
             >
-              <Icon name="pen" size={20} color="white" />
-              売上・経費登録
+              <Icon name="pen" size={24} color="white" />
             </button>
             <button
-              onClick={() => setIsApprovalModalOpen(true)}
-              style={{
-                height: "56px", padding: "0 32px", borderRadius: "28px",
-                background: "#f59e0b", color: "white", border: "none",
-                boxShadow: "0 8px 20px rgba(245, 158, 11, 0.4)",
-                display: "flex", alignItems: "center", gap: "12px",
-                fontSize: "16px", fontWeight: 700, cursor: "pointer",
-                transition: "transform 0.2s",
-                whiteSpace: "nowrap" // テキストの折り返しを防止
+              onClick={() => {
+                setIsApprovalModalOpen(true);
+                setIsFabExpanded(false);
               }}
-              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
-              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+              className={`${styles.fabChild} ${styles.fabChildApproval} ${isFabExpanded ? styles.fabChildVisible : ""}`}
+              style={{ '--index': 2 } as React.CSSProperties}
+              aria-label="承認待ち経費"
             >
-              <Icon name="check-circle" size={20} color="white" />
-              承認待ち経費
+              <Icon name="check-circle" size={24} color="white" />
+            </button>
+            
+            {/* 親FABボタン */}
+            <button
+              onClick={() => setIsFabExpanded(!isFabExpanded)}
+              className={`${styles.fabParent} ${isFabExpanded ? styles.fabParentExpanded : ""}`}
+              aria-label={isFabExpanded ? "メニューを閉じる" : "メニューを開く"}
+            >
+              <Icon 
+                name={isFabExpanded ? "close" : "plus"} 
+                size={24} 
+                color="white" 
+              />
             </button>
           </div>,
           document.body
@@ -661,139 +557,24 @@ export default function AccountingPage() {
       />
 
       {/* 取り消し理由入力モーダル */}
-      {voidModal.isOpen && voidModal.item && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            backdropFilter: "blur(2px)",
-            zIndex: 10001,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px",
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setVoidModal({ isOpen: false, item: null });
-              setVoidReason("");
-            }
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "24px",
-              padding: "24px",
-              width: "100%",
-              maxWidth: "400px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-            }}
-          >
-            <h3 style={{ margin: "0 0 16px", fontSize: "18px", fontWeight: 700, color: "#1e293b" }}>
-              取引の逆仕訳（取り消し）
-            </h3>
-            <div style={{ marginBottom: "16px", padding: "12px", background: "#f1f5f9", borderRadius: "12px" }}>
-              <div style={{ fontSize: "14px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
-                {voidModal.item.title}
-              </div>
-              <div style={{ fontSize: "12px", color: "#64748b" }}>
-                {voidModal.item.date} · ¥{Math.abs(voidModal.item.amount).toLocaleString()}
-              </div>
-            </div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
-              取り消し理由 <span style={{ color: "#ef4444" }}>*</span>
-            </label>
-            <textarea
-              value={voidReason}
-              onChange={(e) => setVoidReason(e.target.value)}
-              placeholder="例: 入力ミス、重複登録、取引内容の変更など"
-              style={{
-                width: "100%",
-                minHeight: "80px",
-                padding: "12px",
-                borderRadius: "12px",
-                border: "1px solid #cbd5e1",
-                fontSize: "14px",
-                fontFamily: "inherit",
-                resize: "vertical",
-                marginBottom: "20px",
-              }}
-              autoFocus
-            />
-            <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "20px", lineHeight: 1.5 }}>
-              ※ 元の取引は削除されず、逆仕訳として記録されます（監査証跡のため）
-            </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
-              <button
-                onClick={() => {
-                  setVoidModal({ isOpen: false, item: null });
-                  setVoidReason("");
-                }}
-                style={{
-                  padding: "10px 24px",
-                  borderRadius: "100px",
-                  border: "none",
-                  background: "transparent",
-                  color: "#64748b",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleVoidConfirm}
-                disabled={!voidReason.trim()}
-                style={{
-                  padding: "10px 24px",
-                  borderRadius: "100px",
-                  border: "none",
-                  background: voidReason.trim() ? "#ef4444" : "#cbd5e1",
-                  color: "#ffffff",
-                  fontWeight: 600,
-                  cursor: voidReason.trim() ? "pointer" : "not-allowed",
-                  transition: "background 0.2s",
-                }}
-              >
-                逆仕訳を実行
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <VoidTransactionModal
+        isOpen={voidModal.isOpen}
+        item={voidModal.item}
+        onClose={() => setVoidModal({ isOpen: false, item: null })}
+        onConfirm={handleVoidConfirm}
+      />
+
+      {/* 取引詳細モーダル */}
+      <TransactionDetailModal
+        isOpen={detailModal.isOpen}
+        transactionId={detailModal.transactionId}
+        onClose={() => setDetailModal({ isOpen: false, transactionId: null })}
+      />
 
       {/* リアルタイム更新中のインジケーター（右上に小さく表示） */}
       {isRefreshing && (
-        <div
-          style={{
-            position: "fixed",
-            top: 16,
-            right: 16,
-            zIndex: 1000,
-            background: "rgba(15, 23, 42, 0.9)",
-            color: "white",
-            padding: "8px 12px",
-            borderRadius: "20px",
-            fontSize: "12px",
-            fontWeight: 700,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-          }}
-        >
-          <div
-            className="spinner"
-            style={{
-              width: 12,
-              height: 12,
-              border: "2px solid rgba(255,255,255,0.3)",
-              borderTopColor: "white",
-              borderRadius: "50%",
-            }}
-          />
+        <div className={styles.refreshingIndicator}>
+          <div className={styles.refreshingSpinner} />
           更新中...
         </div>
       )}

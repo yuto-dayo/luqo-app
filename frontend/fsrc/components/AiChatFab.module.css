@@ -16,11 +16,11 @@
   touch-action: none;
   user-select: none;
   transition: transform 0.2s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1)),
-              box-shadow 0.2s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1)),
-              width 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
-              height 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
-              border-radius 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
-              opacity 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275));
+    box-shadow 0.2s var(--motion-easing, cubic-bezier(0.2, 0, 0, 1)),
+    width 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+    height 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+    border-radius 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+    opacity 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275));
 }
 
 .fab:hover {
@@ -71,11 +71,11 @@
 .fab.animating {
   /* アニメーション中はtransitionを有効化 */
   transition: left 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
-              top 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
-              width 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
-              height 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
-              border-radius 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
-              opacity 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275));
+    top 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+    width 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+    height 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+    border-radius 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275)),
+    opacity 0.3s var(--motion-easing, cubic-bezier(0.175, 0.885, 0.32, 1.275));
 }
 
 /* 格納状態でのホバー効果 */
@@ -90,11 +90,13 @@
 }
 
 /* オーバーレイ（モバイルのみ） */
+/* オーバーレイ（モバイル＆デスクトップ共通） */
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.32);
   z-index: 9998;
+  background: rgba(9, 9, 34, 0.55);
+  backdrop-filter: blur(4px);
   animation: fadeIn 0.3s ease;
 }
 
@@ -102,6 +104,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -114,7 +117,7 @@ body.retro-game .fab {
   color: #0a0a0f !important;
   border: 2px solid #00ffff !important;
   border-radius: 0 !important;
-  box-shadow: 
+  box-shadow:
     0 0 10px rgba(0, 255, 255, 0.5),
     4px 4px 0px #000000 !important;
   transition: transform 0.1s steps(1, end) !important;
@@ -136,14 +139,14 @@ body.retro-game .fab:hover {
   background: #00ffff !important;
   color: #0a0a0f !important;
   transform: scale(1.1) translate(2px, 2px) !important;
-  box-shadow: 
+  box-shadow:
     0 0 25px rgba(0, 255, 255, 1),
     2px 2px 0px #000000 !important;
 }
 
 body.retro-game .fab:active {
   transform: scale(0.95) translate(4px, 4px) !important;
-  box-shadow: 
+  box-shadow:
     0 0 10px rgba(0, 255, 255, 0.6),
     0px 0px 0px #000000 !important;
 }
@@ -188,4 +191,3 @@ body.retro-game .fab:hover svg ellipse {
 body.retro-game .overlay {
   background: rgba(10, 10, 15, 0.9) !important;
 }
-

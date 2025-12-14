@@ -50,28 +50,37 @@ export const AiChatFab: React.FC = () => {
   } = useAiChat();
 
   const { isMobile, isTablet } = useResponsive();
-  const { isAnyModalOpen } = useModal();
-  
+  const { isAnyModalOpen, registerModal } = useModal();
+
   // レトロゲームモードの検出
   const [isRetroGameMode, setIsRetroGameMode] = useState(false);
-  
+
   useEffect(() => {
     const checkRetroMode = () => {
       setIsRetroGameMode(document.body.classList.contains("retro-game"));
     };
-    
+
     // 初回チェック
     checkRetroMode();
-    
+
     // MutationObserverでbodyクラスの変更を監視
     const observer = new MutationObserver(checkRetroMode);
     observer.observe(document.body, {
       attributes: true,
       attributeFilter: ["class"],
     });
-    
+
     return () => observer.disconnect();
   }, []);
+
+  // チャットが開いている時はbodyのスクロールを無効化
+  // チャットが開いている時はModalContextに登録してスクロールを制御
+  useEffect(() => {
+    if (isOpen) {
+      const unregister = registerModal("ai-chat");
+      return unregister;
+    }
+  }, [isOpen, registerModal]);
 
   // ドラッグ機能 (開いているときは無効、モバイルでも有効)
   const { position, isDocked, dockSide, isAnimating, ref: fabRef, undock, handlers } = useDraggable({
@@ -101,7 +110,7 @@ export const AiChatFab: React.FC = () => {
 
   // レトロゲームモードではアイコンをシアンに（ホバー時はダーク）
   const [isHovered, setIsHovered] = useState(false);
-  const iconColor = isRetroGameMode 
+  const iconColor = isRetroGameMode
     ? (isHovered ? "#0a0a0f" : "#00ffff")
     : "var(--color-on-seed, #ffffff)";
 
@@ -126,9 +135,13 @@ export const AiChatFab: React.FC = () => {
         </button>
       )}
 
-      {/* Mobile Overlay */}
-      {isOpen && isMobile && (
-        <div onClick={() => setIsOpen(false)} className={styles.overlay} />
+      {/* Overlay (Mobile & Desktop) */}
+      {isOpen && (
+        <div
+          onClick={() => setIsOpen(false)}
+          className={styles.overlay}
+          aria-hidden="true"
+        />
       )}
 
       {/* Chat Window */}

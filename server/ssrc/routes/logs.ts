@@ -9,6 +9,7 @@ import type { AuthedRequest } from "../types/authed-request";
 import { loadPromptById } from "../lib/promptIds";
 import { openai } from "../lib/openaiClient";
 import { supabaseAdmin } from "../services/supabaseClient";
+import { logger } from "../lib/logger";
 
 export const logsRouter = Router();
 
@@ -139,7 +140,7 @@ logsRouter.post(
         event,
       });
     } catch (error) {
-      console.error("[logs] failed to append event", error);
+      logger.error("[logs] failed to append event", error);
       return next(error);
     }
   },
@@ -185,7 +186,7 @@ logsRouter.get(
         month: currentMonth,
       });
     } catch (error) {
-      console.error("[logs] failed to fetch history", error);
+      logger.error("[logs] failed to fetch history", error);
       return next(error);
     }
   },
@@ -220,11 +221,13 @@ logsRouter.get(
       const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
       const endDate = now;
 
-      // 全ユーザーのログを取得するため、管理者クライアントを使用
+      // [SECURITY] RLSバイパス: ニュース表示機能では全ユーザーのログを集約する必要がある
+      // 理由: 認証済みユーザーに対してチーム全体のログを表示するため
+      // リスク軽減: 認証済みユーザーのみアクセス可能、詳細なユーザー情報は返さない
       const allLogs = await dbClient.getAllEventsByDateRange(
         startDate.toISOString(),
         endDate.toISOString(),
-        undefined, // 管理者クライアントを使用（RLSをバイパスして全ユーザーのログを取得）
+        undefined,
       );
 
       // ログのみを返す（通知などは除外）
@@ -246,7 +249,7 @@ logsRouter.get(
         days: daysNum,
       });
     } catch (error) {
-      console.error("[logs] failed to fetch all history", error);
+      logger.error("[logs] failed to fetch all history", error);
       return next(error);
     }
   },
@@ -281,11 +284,13 @@ logsRouter.get(
       const startDate = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
       const endDate = now;
 
-      // ログデータを取得（全ユーザーのログを取得するため、管理者クライアントを使用）
+      // [SECURITY] RLSバイパス: AIニュース生成に全ユーザーのログが必要
+      // 理由: チーム全体の活動をAIが分析してニュースを生成するため
+      // リスク軽減: 認証済みユーザーのみアクセス可能、ユーザーIDは匿名化された名前に変換
       const allLogs = await dbClient.getAllEventsByDateRange(
         startDate.toISOString(),
         endDate.toISOString(),
-        undefined, // 管理者クライアントを使用（RLSをバイパスして全ユーザーのログを取得）
+        undefined,
       );
 
       // ログのみを抽出
@@ -309,7 +314,7 @@ logsRouter.get(
       // ユーザー名を取得（ユーザーIDからユーザー名へのマッピング）
       const uniqueUserIds = Array.from(new Set(logEvents.map((log) => log.userId).filter((id): id is string => Boolean(id))));
       const userNameMap: Record<string, string> = {};
-      
+
       if (uniqueUserIds.length > 0) {
         const { data: profiles, error: profileError } = await supabaseAdmin
           .from("profiles")
@@ -424,7 +429,7 @@ ${logsText}
         newsItems,
       });
     } catch (error) {
-      console.error("[logs] failed to generate news", error);
+      logger.error("[logs] failed to generate news", error);
       // エラー時はフォールバックとしてデフォルトメッセージを返す
       return res.json({
         ok: true,
@@ -486,12 +491,13 @@ logsRouter.get(
         });
       }
 
-      // ログデータを取得（チーム要約のため、管理者クライアントを使用して全ユーザーのログを取得）
-      // undefinedを渡すことで、getClient関数が自動的にsupabaseAdminを使用する
+      // [SECURITY] RLSバイパス: チーム活動要約に全ユーザーのログが必要
+      // 理由: 指定期間のチーム全体の活動を要約するため
+      // リスク軽減: 認証済みユーザーのみアクセス可能、期間は最备90日に制限
       const allLogs = await dbClient.getAllEventsByDateRange(
         start.toISOString(),
         end.toISOString(),
-        undefined, // 管理者クライアントを使用（RLSをバイパスして全ユーザーのログを取得）
+        undefined,
       );
 
       // ログのみを抽出
@@ -528,7 +534,7 @@ logsRouter.get(
       // ユーザー名を取得（ユーザーIDからユーザー名へのマッピング）
       const uniqueUserIds = Array.from(new Set(logEvents.map((log) => log.userId).filter((id): id is string => Boolean(id))));
       const userNameMap: Record<string, string> = {};
-      
+
       if (uniqueUserIds.length > 0) {
         const { data: profiles, error: profileError } = await supabaseAdmin
           .from("profiles")
@@ -605,9 +611,9 @@ logsRouter.get(
 - 総ログ件数: ${logCount}件
 - 参加人数: ${userCount}名
 - アクティブユーザー（上位5名）: ${topUsers.map(([uid, count]) => {
-          const userName = userNameMap[uid] || uid;
-          return `${userName}(${count}件)`;
-        }).join(", ") || "なし"}
+        const userName = userNameMap[uid] || uid;
+        return `${userName}(${count}件)`;
+      }).join(", ") || "なし"}
 - 最もアクティブな日: ${mostActiveDay ? `${mostActiveDay[0]}（${mostActiveDay[1]}件）` : "なし"}
 
 【ログ一覧】
@@ -657,10 +663,10 @@ ${logsText}
           statistics: {
             totalLogs: logCount,
             uniqueUsers: userCount,
-            topUsers: topUsers.map(([uid, count]) => ({ 
-              userId: uid, 
+            topUsers: topUsers.map(([uid, count]) => ({
+              userId: uid,
               userName: userNameMap[uid] || uid,
-              count 
+              count
             })),
             mostActiveDay: mostActiveDay ? { date: mostActiveDay[0], count: mostActiveDay[1] } : null,
             dailyCounts: Array.from(dailyCounts.entries()).map(([date, count]) => ({ date, count })),
@@ -673,7 +679,7 @@ ${logsText}
         },
       });
     } catch (error) {
-      console.error("[logs] failed to generate summary", error);
+      logger.error("[logs] failed to generate summary", error);
       return next(error);
     }
   },

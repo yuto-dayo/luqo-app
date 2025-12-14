@@ -28,6 +28,10 @@ let globalCount = 0;
 let subscriptionRef: { unsubscribe: () => void } | null = null;
 let isSubscribed = false;
 let isFetching = false;
+let retryTimer: any = null;
+let retryCount = 0;
+const maxRetries = 5; // 最大リトライ回数
+const baseRetryDelay = 1000; // 初期リトライ遅延（ミリ秒）
 
 // 認証状態をチェック
 function isAuthenticated(): boolean {
@@ -51,7 +55,7 @@ async function fetchNotificationsGlobal(): Promise<void> {
 
   try {
     isFetching = true;
-    
+
     const res = await apiClient.get<{ items: NotificationItem[] }>("/api/v1/notifications");
     if (res?.items) {
       globalNotifications = res.items;
@@ -80,6 +84,37 @@ async function fetchNotificationsGlobal(): Promise<void> {
   }
 }
 
+// リトライをクリーンアップする関数
+function clearRetry(): void {
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+}
+
+// 指数バックオフ付きリトライ関数
+function scheduleRetry(): void {
+  clearRetry();
+
+  if (retryCount >= maxRetries) {
+    console.warn("[NotificationContext] Max retries reached. Giving up.");
+    retryCount = 0;
+    return;
+  }
+
+  // 指数バックオフ: 1秒、2秒、4秒、8秒、16秒...
+  const delay = baseRetryDelay * Math.pow(2, retryCount);
+  retryCount += 1;
+
+  console.log(`[NotificationContext] Scheduling retry ${retryCount}/${maxRetries} in ${delay}ms`);
+
+  retryTimer = setTimeout(() => {
+    if (!isSubscribed && isAuthenticated()) {
+      startRealtime();
+    }
+  }, delay);
+}
+
 // Supabase Realtimeサブスクリプションの開始
 function startRealtime(): void {
   // 認証されていない場合は開始しない
@@ -93,9 +128,16 @@ function startRealtime(): void {
   }
 
   try {
+    // 既存のサブスクリプションをクリーンアップ
+    const currentSub = subscriptionRef;
+    if (currentSub) {
+      (currentSub as any).unsubscribe();
+      subscriptionRef = null;
+    }
+
     // eventsテーブルで通知（kind="notification"）のみを監視
     const channel = supabase
-      .channel("notifications-updates")
+      .channel(`notifications-updates-${Date.now()}`) // 一意なチャンネル名で重複を防ぐ
       .on(
         "postgres_changes",
         {
@@ -112,12 +154,22 @@ function startRealtime(): void {
       )
       .subscribe((status) => {
         console.log("[NotificationContext] Subscription status:", status);
-        
+
         if (status === "SUBSCRIBED") {
           isSubscribed = true;
+          retryCount = 0; // 成功したらリトライカウントをリセット
+          clearRetry();
+          console.log("[NotificationContext] Successfully subscribed");
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          console.warn("[NotificationContext] Realtime failed, will retry on next fetch");
+          console.warn(`[NotificationContext] Connection failed (${status}), will retry automatically`);
           isSubscribed = false;
+
+          // 自動リトライをスケジュール
+          scheduleRetry();
+        } else if (status === "CLOSED") {
+          // CLOSEDは正常な状態（ページが非表示になった時など）なので、リトライしない
+          isSubscribed = false;
+          clearRetry();
         }
       });
 
@@ -126,20 +178,26 @@ function startRealtime(): void {
         channel.unsubscribe();
         isSubscribed = false;
         subscriptionRef = null;
+        clearRetry();
       },
     };
   } catch (err) {
     console.error("[NotificationContext] Setup error:", err);
     isSubscribed = false;
+
+    // エラー時もリトライをスケジュール
+    scheduleRetry();
   }
 }
 
 function stopRealtime(): void {
+  clearRetry();
   if (subscriptionRef) {
     subscriptionRef.unsubscribe();
     subscriptionRef = null;
     isSubscribed = false;
   }
+  retryCount = 0; // 停止時はリトライカウントをリセット
 }
 
 /**
@@ -154,7 +212,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // ページの可視性・フォーカス管理
   useEffect(() => {
     mountedRef.current = true;
-    
+
     // 状態更新コールバックを設定
     updateState = (n, c) => {
       if (mountedRef.current) {
@@ -162,13 +220,13 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         setCount(c);
       }
     };
-    
+
     let isPageVisible = !document.hidden;
     let focusTimer: ReturnType<typeof setTimeout> | null = null;
 
     const handleVisibilityChange = () => {
       const nowVisible = !document.hidden;
-      
+
       if (nowVisible && !isPageVisible) {
         // ページが表示された: Realtime接続のみ再開（APIは呼ばない - Realtimeが変更を監視しているため）
         focusTimer = setTimeout(() => {
@@ -179,7 +237,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         if (focusTimer) clearTimeout(focusTimer);
         stopRealtime();
       }
-      
+
       isPageVisible = nowVisible;
     };
 
@@ -206,7 +264,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);
     window.addEventListener("blur", handleBlur);
-    
+
     return () => {
       mountedRef.current = false;
       if (focusTimer) clearTimeout(focusTimer);
@@ -219,7 +277,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const refresh = useCallback(async () => {
     if (!isAuthenticated()) return;
-    
+
     setLoading(true);
     try {
       // スロットリングを無視してすぐに取得
