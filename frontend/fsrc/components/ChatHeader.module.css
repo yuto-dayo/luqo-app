@@ -1,0 +1,164 @@
+.header {
+  padding: 16px;
+  background: var(--color-surface-container, #f1f5f9);
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding: 12px 16px;
+  }
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.iconWrapper {
+  background: var(--color-seed-bg, #e0f2fe);
+  padding: 8px;
+  border-radius: 12px;
+  color: var(--color-seed, #2563eb);
+}
+
+.title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text-main, #111827);
+}
+
+@media (max-width: 640px) {
+  .title {
+    font-size: 13px;
+  }
+}
+
+.subtitle {
+  font-size: 11px;
+  color: var(--color-text-sub, #6b7280);
+}
+
+@media (max-width: 640px) {
+  .subtitle {
+    font-size: 10px;
+  }
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modeToggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-surface-container-high, #e5e7eb);
+  border-radius: 12px;
+}
+
+.modeButton {
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .modeButton {
+    padding: 8px;
+  }
+}
+
+.modeButtonActive {
+  background: var(--color-seed, #2563eb);
+}
+
+.closeButton {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted, #9ca3af);
+}
+
+/* Retro Game Mode Styles */
+body.retro-game .header {
+  background: #0a0a0f !important;
+  border-bottom: 2px solid #00ffff !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3) !important;
+}
+
+body.retro-game .iconWrapper {
+  background: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+}
+
+body.retro-game .title {
+  color: #00ffff !important;
+  text-shadow:
+    0 0 10px rgba(0, 255, 255, 0.8),
+    0 0 20px rgba(0, 255, 255, 0.5) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  font-family: 'DotGothic16', 'Press Start 2P', monospace !important;
+}
+
+body.retro-game .subtitle {
+  color: #00ff88 !important;
+  text-shadow: 0 0 5px rgba(0, 255, 136, 0.6) !important;
+  font-family: 'DotGothic16', 'Press Start 2P', monospace !important;
+}
+
+body.retro-game .modeToggle {
+  background: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+}
+
+body.retro-game .modeButton {
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+body.retro-game .modeButtonActive {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.8) !important;
+}
+
+body.retro-game .closeButton {
+  border: 2px solid #00ffff !important;
+  background: #1a1a2e !important;
+  color: #00ffff !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+}
+
+body.retro-game .closeButton:hover {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.8) !important;
+  transform: translate(2px, 2px) !important;
+}
+

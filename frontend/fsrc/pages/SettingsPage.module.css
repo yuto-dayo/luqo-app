@@ -1,0 +1,739 @@
+.container {
+  padding-bottom: 80px;
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  background: var(--color-bg-body);
+}
+
+/* モバイル対応 */
+@media (max-width: 600px) {
+  .container {
+    padding: var(--spacing-md) var(--spacing-sm);
+    gap: var(--spacing-md);
+  }
+}
+
+/* セクションヘッダー */
+.sectionHeader {
+  padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-sm);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-seed);
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* カードコンテナ */
+.cardContainer {
+  background: var(--color-surface) !important;
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  margin: 0 var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+}
+
+/* 通常モードでの背景色を確実に適用 */
+body:not(.retro-game) .cardContainer {
+  background: var(--color-surface) !important;
+}
+
+@media (max-width: 600px) {
+  .cardContainer {
+    margin: 0 var(--spacing-sm);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+  }
+}
+
+/* プロフィールセクション */
+.profileSection {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: center;
+  background: transparent;
+}
+
+@media (max-width: 600px) {
+  .profileSection {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-lg);
+  background: var(--color-seed-bg);
+  color: var(--color-seed);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.profileForm {
+  flex: 1;
+  width: 100%;
+  background: transparent;
+}
+
+/* 通常モードでの背景色を確実に適用 */
+body:not(.retro-game) .profileSection,
+body:not(.retro-game) .profileForm {
+  background: transparent;
+}
+
+/* 設定アイテム */
+.settingsItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  cursor: pointer;
+  transition: background var(--motion-duration) var(--motion-easing);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settingsItem:last-child {
+  border-bottom: none;
+}
+
+.settingsItem:hover {
+  background: var(--color-surface-container-low);
+}
+
+.settingsItemIcon {
+  color: var(--color-text-sub);
+  display: flex;
+  flex-shrink: 0;
+}
+
+.settingsItemContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settingsItemTitle {
+  font-size: 1rem;
+  color: var(--color-text-main);
+  font-weight: 500;
+}
+
+.settingsItemSubtitle {
+  font-size: 0.8125rem;
+  color: var(--color-text-sub);
+}
+
+.settingsItemAction {
+  color: var(--color-text-muted);
+}
+
+/* 破壊的操作のアイテム */
+.settingsItemDestructive .settingsItemIcon {
+  color: #b3261e;
+}
+
+.settingsItemDestructive .settingsItemTitle {
+  color: #b3261e;
+}
+
+/* 入力フィールド */
+.inputGroup {
+  margin-bottom: var(--spacing-md);
+  background: transparent;
+}
+
+/* 通常モードでの背景色を確実に適用 */
+body:not(.retro-game) .inputGroup {
+  background: transparent;
+}
+
+.inputLabel {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-seed);
+  margin-bottom: var(--spacing-sm);
+  margin-left: 4px;
+}
+
+.inputWrapper {
+  background: var(--color-seed-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  transition: all var(--motion-duration) var(--motion-easing);
+  display: flex;
+  align-items: center;
+  padding: 6px 8px 6px var(--spacing-md);
+  gap: var(--spacing-sm);
+}
+
+/* 通常モードでの背景色を確実に適用 */
+body:not(.retro-game) .inputWrapper {
+  background: var(--color-seed-bg);
+}
+
+.inputWrapper:focus-within {
+  border-color: var(--color-seed);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-seed) 20%, transparent);
+}
+
+.inputField {
+  flex: 1;
+  padding: var(--spacing-sm) 0;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+  outline: none;
+  min-width: 0;
+  font-family: inherit;
+}
+
+.inputField::placeholder {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.inputAction {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.inputIcon {
+  opacity: 0.7;
+}
+
+/* パスワード入力セクション */
+.passwordInputSection {
+  padding: var(--spacing-md) var(--spacing-lg);
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.passwordInputWrapper {
+  flex: 1;
+}
+
+.passwordInput {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+  background: transparent;
+  color: var(--color-text-main);
+  font-family: inherit;
+}
+
+.passwordInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.passwordButton {
+  background: var(--color-seed);
+  color: var(--color-on-seed);
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--motion-duration) var(--motion-easing);
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
+.passwordButton:disabled {
+  background: var(--color-surface-container-high);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.passwordButton:not(:disabled):hover {
+  transform: scale(1.03);
+  box-shadow: var(--shadow-md);
+}
+
+/* 保存ボタン */
+.saveButton {
+  background: var(--color-seed);
+  color: var(--color-on-seed);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: none;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--motion-duration) var(--motion-easing);
+  white-space: nowrap;
+}
+
+.saveButton:hover:not(:disabled) {
+  transform: scale(1.03);
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ログアウトボタン */
+.logoutButton {
+  width: 100%;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-full);
+  border: 1px solid #fee2e2;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all var(--motion-duration) var(--motion-easing);
+  margin: 0 var(--spacing-md);
+}
+
+.logoutButton:hover {
+  background: #fee2e2;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* バージョン情報 */
+.versionInfo {
+  text-align: center;
+  margin-top: var(--spacing-lg);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  padding: 0 var(--spacing-md);
+}
+
+/* セパレーター */
+.separator {
+  height: 1px;
+  background: var(--color-border);
+  margin: 0 var(--spacing-lg);
+}
+
+/* レトロゲームモード対応 */
+:global(body.retro-game) .container {
+  background: transparent;
+}
+
+:global(body.retro-game) .cardContainer {
+  background: #1a1a2e !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.5),
+    4px 4px 0px #000000 !important;
+}
+
+:global(body.retro-game) .sectionHeader {
+  color: #00ffff !important;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.8) !important;
+  font-family: 'DotGothic16', 'Press Start 2P', monospace !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+}
+
+:global(body.retro-game) .avatar {
+  background: #0a0a0f !important;
+  color: #00ffff !important;
+  border: 2px solid #00ffff !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.5) !important;
+}
+
+:global(body.retro-game) .settingsItem {
+  border-bottom: 1px solid #00ffff !important;
+}
+
+:global(body.retro-game) .settingsItem:hover {
+  background: #0a0a0f !important;
+}
+
+:global(body.retro-game) .settingsItemTitle {
+  color: #00ffff !important;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.6) !important;
+}
+
+:global(body.retro-game) .settingsItemSubtitle {
+  color: #00ff88 !important;
+}
+
+:global(body.retro-game) .inputLabel {
+  color: #00ff00 !important;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.6) !important;
+}
+
+:global(body.retro-game) .inputWrapper {
+  background: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+}
+
+:global(body.retro-game) .inputField {
+  color: #00ffff !important;
+}
+
+:global(body.retro-game) .inputField::placeholder {
+  color: #8888ff !important;
+}
+
+:global(body.retro-game) .inputAction {
+  background: transparent !important;
+}
+
+:global(body.retro-game) .inputAction svg {
+  color: #00ffff !important;
+  filter: drop-shadow(0 0 3px rgba(0, 255, 255, 0.8)) !important;
+}
+
+:global(body.retro-game) .saveButton,
+:global(body.retro-game) .passwordButton {
+  background: #1a1a2e !important;
+  color: #00ffff !important;
+  border: 2px solid #00ffff !important;
+  border-radius: 0 !important;
+  box-shadow: 
+    0 0 8px rgba(0, 255, 255, 0.5),
+    2px 2px 0px #000000 !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+}
+
+:global(body.retro-game) .saveButton:hover:not(:disabled),
+:global(body.retro-game) .passwordButton:hover:not(:disabled) {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  transform: translate(2px, 2px) !important;
+}
+
+:global(body.retro-game) .passwordButton:disabled {
+  background: #0a0a0f !important;
+  color: #8888ff !important;
+  border-color: #8888ff !important;
+}
+
+:global(body.retro-game) .logoutButton {
+  background: #1a1a2e !important;
+  border: 2px solid #ff00ff !important;
+  color: #ff00ff !important;
+  box-shadow: 
+    0 0 8px rgba(255, 0, 255, 0.5),
+    2px 2px 0px #000000 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+}
+
+:global(body.retro-game) .logoutButton:hover {
+  background: #ff00ff !important;
+  color: #0a0a0f !important;
+  transform: translate(2px, 2px) !important;
+}
+
+:global(body.retro-game) .versionInfo {
+  color: #8888ff !important;
+}
+
+:global(body.retro-game) .separator {
+  background: #00ffff !important;
+  height: 2px !important;
+}
+
+/* ====================================================
+   工事カテゴリ設定セクション
+   ==================================================== */
+
+/* カテゴリリスト */
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* カテゴリアイテム */
+.categoryItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--color-surface-container-low);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  transition: all var(--motion-duration) var(--motion-easing);
+}
+
+.categoryItem:hover {
+  border-color: var(--color-seed);
+  box-shadow: var(--shadow-sm);
+}
+
+/* カテゴリヘッダー（ラベル + バッジ） */
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.categoryLabel {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.categoryCode {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  background: var(--color-surface-container);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+/* 重みスライダーセクション */
+.weightSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.weightHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.weightLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-sub);
+}
+
+.weightValue {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-seed);
+  min-width: 50px;
+  text-align: right;
+}
+
+/* スライダー */
+.weightSlider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  background: var(--color-surface-container-high);
+  border-radius: var(--radius-full);
+  outline: none;
+  cursor: pointer;
+  transition: background var(--motion-duration) var(--motion-easing);
+}
+
+.weightSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: var(--color-seed);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.weightSlider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 8px var(--color-seed);
+}
+
+.weightSlider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: var(--color-seed);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  box-shadow: var(--shadow-md);
+}
+
+/* スライダーの塗りつぶし（Webkit用） */
+.weightSlider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: var(--radius-full);
+}
+
+/* 重み変更の警告テキスト */
+.weightWarning {
+  font-size: 0.6875rem;
+  color: #d97706;
+  margin-top: 2px;
+}
+
+/* 新規カテゴリ追加セクション */
+.addCategorySection {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--color-surface-container-low);
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--color-border);
+  transition: all var(--motion-duration) var(--motion-easing);
+}
+
+.addCategorySection:focus-within {
+  border-color: var(--color-seed);
+}
+
+.addCategoryInput {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  background: transparent;
+  font-size: 0.9375rem;
+  color: var(--color-text-main);
+  outline: none;
+  font-family: inherit;
+}
+
+.addCategoryInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.addCategoryButton {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-seed);
+  color: var(--color-on-seed);
+  border: none;
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--motion-duration) var(--motion-easing);
+  white-space: nowrap;
+}
+
+.addCategoryButton:disabled {
+  background: var(--color-surface-container-high);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.addCategoryButton:not(:disabled):hover {
+  transform: scale(1.03);
+  box-shadow: var(--shadow-md);
+}
+
+/* ローディング状態 */
+.loadingContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+/* 空状態 */
+.emptyState {
+  padding: var(--spacing-lg);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+/* レトロゲームモード対応 */
+:global(body.retro-game) .categoryItem {
+  background: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+}
+
+:global(body.retro-game) .categoryItem:hover {
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.6) !important;
+}
+
+:global(body.retro-game) .categoryLabel {
+  color: #00ffff !important;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.6) !important;
+}
+
+:global(body.retro-game) .categoryCode {
+  background: #1a1a2e !important;
+  color: #8888ff !important;
+  border: 1px solid #8888ff !important;
+}
+
+:global(body.retro-game) .weightLabel {
+  color: #00ff88 !important;
+}
+
+:global(body.retro-game) .weightValue {
+  color: #00ffff !important;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.8) !important;
+}
+
+:global(body.retro-game) .weightSlider {
+  background: #1a1a2e !important;
+}
+
+:global(body.retro-game) .weightSlider::-webkit-slider-thumb {
+  background: #00ffff !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.8) !important;
+}
+
+:global(body.retro-game) .weightSlider::-moz-range-thumb {
+  background: #00ffff !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.8) !important;
+}
+
+:global(body.retro-game) .addCategorySection {
+  background: #0a0a0f !important;
+  border: 2px dashed #00ffff !important;
+}
+
+:global(body.retro-game) .addCategoryInput {
+  color: #00ffff !important;
+}
+
+:global(body.retro-game) .addCategoryInput::placeholder {
+  color: #8888ff !important;
+}
+
+:global(body.retro-game) .addCategoryButton {
+  background: #1a1a2e !important;
+  color: #00ffff !important;
+  border: 2px solid #00ffff !important;
+  border-radius: 0 !important;
+  box-shadow: 
+    0 0 8px rgba(0, 255, 255, 0.5),
+    2px 2px 0px #000000 !important;
+}
+
+:global(body.retro-game) .addCategoryButton:hover:not(:disabled) {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+}
+
+:global(body.retro-game) .weightWarning {
+  color: #ff00ff !important;
+}
+

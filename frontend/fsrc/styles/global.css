@@ -1,0 +1,1006 @@
+/* Google Fonts: Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Pixel Fonts for Retro Game Mode */
+@import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap');
+
+:root {
+  /* --- M3 Color System (Base) --- */
+  /* Main Background: 最背面 (Neutral 98) */
+  --color-bg-body: #fdfcff;
+  
+  /* Surface Container: カードの親となる背景 (Neutral 96) */
+  --color-surface-container-low: #f8fafc;
+  --color-surface-container: #f1f5f9;
+  --color-surface-container-high: #e2e8f0;
+  --color-surface-container-lowest: #ffffff;
+
+  /* Surface: カード自体の色 (Neutral 100 / White) */
+  --color-surface: #ffffff;
+  --color-surface-dim: #dedede;
+
+  /* Text Colors */
+  --color-text-main: #1e293b;  /* Slate 800 */
+  --color-text-sub: #475569;   /* Slate 600 */
+  --color-text-muted: #94a3b8; /* Slate 400 */
+
+  /* Borders */
+  --color-border: #e2e8f0;
+  --color-border-hover: #cbd5e1;
+
+  /* --- M3 Expressive KPI Tokens (LU/Q/O) --- */
+  /* LU (Learning) - Sky Blue */
+  --color-lu-base: #0284c7;
+  --color-lu-bg: #f0f9ff;
+  --color-lu-surface: #e0f2fe;
+
+  /* Q (Contribution) - Emerald Green */
+  --color-q-base: #16a34a;
+  --color-q-bg: #f0fdf4;
+  --color-q-surface: #dcfce7;
+
+  /* O (Innovation) - Amber Orange */
+  --color-o-base: #d97706;
+  --color-o-bg: #fffbeb;
+  --color-o-surface: #fef3c7;
+
+  /* Dynamic Theme Defaults (JSから上書きされる変数) */
+  --color-seed: #00639b;
+  --color-seed-bg: #f0f9ff;
+  --color-on-seed: #ffffff; /* Seed色の上に表示するテキスト色（通常は白） */
+  
+  /* --- Shapes & Radius --- */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  
+  /* AIが決定する動的角丸 */
+  --radius-dynamic: 16px; 
+
+  /* --- Motion --- */
+  --motion-duration: 0.4s;
+  --motion-easing: cubic-bezier(0.2, 0, 0, 1); /* M3 Standard Easing */
+
+  /* --- Elevation & Shadows --- */
+  /* 通常の影 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  
+  /* 浮遊感のある影 (M3 Elevation Level 3相当) */
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+
+  /* Responsive Spacing (Mobile First) */
+  --spacing-container-mobile: 1rem;
+  --spacing-container-tablet: 1.5rem;
+  --spacing-container-desktop: 2rem;
+
+  /* Breakpoints (Material Design 3推奨) */
+  --breakpoint-mobile: 480px;      /* Large handsets */
+  --breakpoint-tablet: 600px;      /* Small tablets */
+  --breakpoint-tablet-large: 840px; /* Large tablets */
+  --breakpoint-desktop: 960px;     /* Desktop */
+  
+  /* Header Height */
+  --header-height: 64px; /* デスクトップ時のヘッダーの高さ */
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--color-bg-body);
+  color: var(--color-text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+}
+
+/* --- Common Components (M3 Style) --- */
+
+/* App Shell Layout */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+}
+
+.app-shell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: rgba(255, 255, 255, 0.85); /* Glassmorphism */
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 50;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  /* Hide-on-Scroll機能のアニメーション（滑らかな動き） */
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translate3d(0, 0, 0); /* GPUアクセラレーションを有効化 */
+  -webkit-transform: translate3d(0, 0, 0); /* Safari対応 */
+}
+
+/* アクセシビリティ: 動きを減らす設定がある場合はアニメーションを無効化 */
+@media (prefers-reduced-motion: reduce) {
+  .app-shell__header {
+    transition: none;
+  }
+}
+
+/* ヘッダーが非表示の時のスタイル */
+.app-shell__header[data-visible="false"] {
+  transform: translate3d(0, -100%, 0);
+  -webkit-transform: translate3d(0, -100%, 0); /* Safari対応 */
+}
+
+/* ヘッダーが表示の時のスタイル */
+.app-shell__header[data-visible="true"] {
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0); /* Safari対応 */
+}
+
+/* モバイル対応: ヘッダーのパディングを調整 */
+@media (max-width: 640px) {
+  :root {
+    --header-height: 56px; /* モバイル時のヘッダーの高さ */
+  }
+  
+  .app-shell__header {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  /* デスクトップナビゲーションはモバイルでは非表示 */
+  .app-shell__nav {
+    display: none;
+  }
+}
+
+.app-shell__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.app-shell__title {
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.025em;
+  /* Brand Gradient */
+  background: linear-gradient(135deg, var(--color-seed), #4f46e5);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.app-shell__nav {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.app-shell__link {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-sub);
+  transition: all 0.2s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.app-shell__link:hover {
+  color: var(--color-text-main);
+  background: var(--color-surface-container-high);
+}
+
+.app-shell__link.active {
+  color: var(--color-seed);
+  background: var(--color-seed-bg);
+}
+
+.app-shell__main {
+  flex: 1;
+  width: 100%;
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: var(--spacing-xl) var(--spacing-md);
+  padding-top: calc(var(--header-height) + var(--spacing-xl));
+  /* メニューが開いている時にメインコンテンツがメニューの下に表示されないようにする */
+  position: relative;
+  z-index: 1;
+  /* 横スクロールを防止 */
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* レスポンシブ: メインコンテンツのパディング調整 */
+@media (max-width: 600px) {
+  .app-shell__main {
+    padding: var(--spacing-md) var(--spacing-sm);
+    padding-top: calc(var(--header-height) + var(--spacing-md));
+  }
+}
+
+@media (min-width: 600px) and (max-width: 840px) {
+  .app-shell__main {
+    padding: var(--spacing-lg) var(--spacing-md);
+    padding-top: calc(var(--header-height) + var(--spacing-lg));
+  }
+}
+
+/* Page Layouts */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  animation: fadeIn 0.4s ease-out;
+  /* 横スクロールを防止 */
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* モバイル対応: ページのギャップを調整 */
+@media (max-width: 600px) {
+  .page {
+    gap: var(--spacing-lg);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* --- Card Styles (Base) --- */
+.card {
+  background: var(--color-surface);
+  /* M3ではボーダーではなくトーン差で境界を作るが、薄いボーダーを入れると締まる */
+  border: 1px solid var(--color-border); 
+  border-radius: var(--radius-dynamic);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--motion-duration) var(--motion-easing);
+  overflow: hidden; /* コンテンツのはみ出し防止 */
+}
+
+/* モバイル対応: カードのパディングを調整 */
+@media (max-width: 600px) {
+  .card {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+  }
+}
+
+/* 通常モードのスタイルを保護（レトロゲームモードの影響を受けないように） */
+body:not(.retro-game) .card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-dynamic);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--motion-duration) var(--motion-easing);
+}
+
+/* --- Utilities --- */
+.text-muted { color: var(--color-text-muted); }
+.text-sm { font-size: 0.875rem; }
+.font-bold { font-weight: 700; }
+
+/* レスポンシブタイポグラフィ */
+@media (max-width: 600px) {
+  .app-shell__title {
+    font-size: 1.125rem;
+  }
+  
+  h1, h2, h3 {
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+  }
+  
+  .text-sm {
+    font-size: 0.8125rem;
+  }
+}
+
+/* --- KPI Header Styles (Responsive) --- */
+.kpi-header {
+  padding: var(--spacing-lg);
+  background: var(--color-surface);
+  border-radius: var(--radius-dynamic);
+  margin-bottom: var(--spacing-lg);
+}
+
+.kpi-header__title {
+  margin-bottom: var(--spacing-lg);
+}
+
+.kpi-header__badge {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-seed-bg);
+  color: var(--color-seed);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.kpi-header__headline {
+  font-size: clamp(1.25rem, 5vw, 1.75rem);
+  font-weight: 800;
+  color: var(--color-text-main);
+  margin: 0 0 var(--spacing-sm) 0;
+  line-height: 1.3;
+}
+
+.kpi-header__sub {
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  color: var(--color-text-sub);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.kpi-header__nav {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-lg);
+}
+
+.kpi-header__pill {
+  flex: 1;
+  min-width: 120px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-surface-container-low);
+  border: 2px solid transparent;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--motion-duration) var(--motion-easing);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  text-align: left;
+}
+
+.kpi-header__pill:hover {
+  background: var(--color-surface-container);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.kpi-header__pill--active {
+  background: var(--color-seed-bg);
+  border-color: var(--color-seed);
+  box-shadow: var(--shadow-md);
+}
+
+.kpi-header__pill-label-ja {
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.kpi-header__pill-label-en {
+  font-size: clamp(0.75rem, 1.5vw, 0.875rem);
+  color: var(--color-text-sub);
+}
+
+.kpi-header__active-description {
+  padding: var(--spacing-md);
+  background: var(--color-surface-container-low);
+  border-radius: var(--radius-md);
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  color: var(--color-text-main);
+  line-height: 1.6;
+  border-left: 4px solid var(--color-seed);
+}
+
+/* モバイル対応: KPI Header */
+@media (max-width: 600px) {
+  .kpi-header {
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .kpi-header__nav {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+  
+  .kpi-header__pill {
+    min-width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .kpi-header__active-description {
+    padding: var(--spacing-sm);
+    font-size: 0.875rem;
+  }
+}
+
+/* ========================================
+   Retro Game Mode (8bit Game Style)
+   ======================================== */
+
+/* 8bit Game Grid Background Pattern */
+@keyframes scanline {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(4px); }
+}
+
+body.retro-game {
+  /* Font: Pixel Font (Sharp & Aliased) */
+  font-family: 'DotGothic16', 'Press Start 2P', monospace !important;
+  -webkit-font-smoothing: none !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  
+  /* Background: Dark 8bit Game Style */
+  background-color: #0a0a0f !important;
+  background-image: 
+    linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+  --color-bg-body: #0a0a0f;
+  
+  /* Surface Colors: Dark with Neon Accents */
+  --color-surface: #1a1a2e;
+  --color-surface-container-low: #16213e;
+  --color-surface-container: #0f3460;
+  --color-surface-container-high: #0a0a0f;
+  --color-surface-container-lowest: #0a0a0f;
+  
+  /* Text Colors: Bright Neon Colors */
+  color: #00ffff !important;
+  --color-text-main: #00ffff;
+  --color-text-sub: #00ff88;
+  --color-text-muted: #8888ff;
+  
+  /* 8bit Neon KPI Colors */
+  --color-lu-base: #00ffff; /* Cyan */
+  --color-q-base: #00ff00; /* Green */
+  --color-o-base: #ff00ff; /* Magenta */
+  --color-lu-surface: rgba(0, 255, 255, 0.15);
+  --color-q-surface: rgba(0, 255, 0, 0.15);
+  --color-o-surface: rgba(255, 0, 255, 0.15);
+
+  /* Borders: Neon Colors */
+  --color-border: #00ffff;
+  
+  /* No Radius - Sharp 8bit Style */
+  --radius-dynamic: 0px;
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-full: 0px;
+  
+  /* 8bit Neon Glow Shadows */
+  --shadow-sm: 0 0 4px rgba(0, 255, 255, 0.5), 2px 2px 0px #000000;
+  --shadow-md: 0 0 8px rgba(0, 255, 255, 0.6), 4px 4px 0px #000000;
+  --shadow-lg: 0 0 12px rgba(0, 255, 255, 0.7), 6px 6px 0px #000000;
+  
+  /* Image Rendering */
+  image-rendering: pixelated;
+  
+  /* CRT Scanline Effect */
+  position: relative;
+}
+
+/* CRT Scanline Overlay */
+body.retro-game::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  z-index: 9999;
+  animation: scanline 0.1s linear infinite;
+}
+
+/* All Elements Reset for Retro Mode - 通常モードに影響しないようにbody.retro-game内に限定 */
+body.retro-game * {
+  border-radius: 0 !important;
+}
+
+/* デフォルトの影をリセット（レトロゲームモードのみ） */
+body.retro-game *:not(.card):not(button):not(.app-shell__link):not(.kpi-header__pill) {
+  box-shadow: none !important;
+}
+
+/* Card Style: 8bit Game Window */
+body.retro-game .card {
+  background: #1a1a2e !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.5),
+    4px 4px 0px #000000 !important;
+  padding: 16px !important;
+  position: relative;
+}
+
+body.retro-game .card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+/* Header Style */
+body.retro-game .app-shell__header {
+  background: #0a0a0f !important;
+  border-bottom: 2px solid #00ffff !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3) !important;
+}
+
+body.retro-game .app-shell__title {
+  color: #00ffff !important;
+  background: none !important;
+  -webkit-text-fill-color: #00ffff !important;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.8),
+    0 0 20px rgba(0, 255, 255, 0.5);
+}
+
+/* Buttons & Links - 8bit Neon Style */
+body.retro-game button,
+body.retro-game .app-shell__link,
+body.retro-game .kpi-header__pill {
+  border: 2px solid #00ffff !important;
+  background: #1a1a2e !important;
+  color: #00ffff !important;
+  box-shadow: 
+    0 0 8px rgba(0, 255, 255, 0.5),
+    2px 2px 0px #000000 !important;
+  cursor: pointer;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+body.retro-game button:hover,
+body.retro-game .app-shell__link:hover,
+body.retro-game .kpi-header__pill:hover {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  box-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.8),
+    2px 2px 0px #000000 !important;
+  transform: translate(2px, 2px);
+}
+
+body.retro-game .kpi-header__pill--active,
+body.retro-game .app-shell__link.active {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  border-color: #00ffff !important;
+  box-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.8),
+    2px 2px 0px #000000 !important;
+}
+
+/* Inputs - 8bit Style */
+body.retro-game input,
+body.retro-game select,
+body.retro-game textarea {
+  background: #0a0a0f !important;
+  color: #00ffff !important;
+  border: 2px solid #00ffff !important;
+  font-family: 'DotGothic16', 'Press Start 2P', monospace !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+}
+
+body.retro-game input:focus,
+body.retro-game select:focus,
+body.retro-game textarea:focus {
+  background: #1a1a2e !important;
+  outline: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.6),
+    0 0 20px rgba(0, 255, 255, 0.3) !important;
+}
+
+/* Notification Badge */
+body.retro-game .notificationBadge {
+  background: #2d2d2d !important;
+  border: none !important;
+  color: #fff !important;
+}
+
+/* Mischief: Tilted Element Class */
+body.retro-game .mischief-tilted {
+  transform: rotate(3deg) !important;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  z-index: 1;
+}
+
+/* Mischief: Reset on hover/click */
+body.retro-game .mischief-tilted:hover,
+body.retro-game .mischief-tilted:active {
+  transform: rotate(0deg) !important;
+}
+
+/* Text Colors - 8bit Neon Style */
+body.retro-game .card h1,
+body.retro-game .card h2,
+body.retro-game .card h3,
+body.retro-game .card h4 {
+  color: #00ffff !important;
+  text-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.8),
+    0 0 20px rgba(0, 255, 255, 0.5) !important;
+}
+
+body.retro-game .card p,
+body.retro-game .card span,
+body.retro-game .card div {
+  color: #00ff88 !important;
+}
+
+body.retro-game .card strong {
+  color: #00ffff !important;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.6) !important;
+}
+
+/* 白い背景をダークに変更 - KpiPanel, FocusCard, LuqoSummary, TScoreSummary */
+body.retro-game section[style*="background: white"],
+body.retro-game section[style*="background:white"],
+body.retro-game div[style*="background: white"],
+body.retro-game div[style*="background:white"],
+body.retro-game div[style*='background: "white"'],
+body.retro-game div[style*="background: rgba(255,255,255"] {
+  background: #1a1a2e !important;
+  color: #00ff88 !important;
+}
+
+/* KpiPanel - "あと X 日" バッジ */
+body.retro-game div[style*="background: white"][style*="あと"] {
+  background: #0a0a0f !important;
+  color: #00ff88 !important;
+  border: 1px solid #00ffff !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+}
+
+/* KpiPanel - Key Result / Strategy セクションのライトグレー背景 */
+body.retro-game div[style*="background: #f8fafc"] {
+  background: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+  color: #00ff88 !important;
+}
+
+body.retro-game div[style*="background: #f8fafc"] div[style*="Key Result"],
+body.retro-game div[style*="background: #f8fafc"] div[style*="STRATEGY"] {
+  color: #00ff00 !important;
+}
+
+/* FocusCard - "残り X 日" バッジ */
+body.retro-game div[style*="background: rgba(255,255,255,0.9)"],
+body.retro-game div[style*="background: rgba(255,255,255,0.6)"] {
+  background: #0a0a0f !important;
+  color: #00ff88 !important;
+  border: 1px solid #00ffff !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+}
+
+/* グラデーション背景もダークに */
+body.retro-game div[style*="linear-gradient"] {
+  background: #1a1a2e !important;
+  background-image: none !important;
+}
+
+/* Badges - 8bit Neon Style */
+body.retro-game [class*="badge"],
+body.retro-game div[style*="background: #0f172a"] {
+  color: #00ffff !important;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.8) !important;
+  background: #1a1a2e !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.5) !important;
+}
+
+/* ========================================
+   Retro Game Mode: Component-Specific Styles
+   8bit Game Style
+   ======================================== */
+
+/* LuqoSummary - 8bit Game Status Window */
+body.retro-game .card section[style*="height"] {
+  background: #1a1a2e !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.5),
+    4px 4px 0px #000000 !important;
+  padding: 16px !important;
+}
+
+body.retro-game .card section[style*="height"] h2 {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  color: #00ffff !important;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.8) !important;
+  border-bottom: 2px solid #00ffff !important;
+  padding-bottom: 8px !important;
+  margin-bottom: 12px !important;
+}
+
+body.retro-game .card section[style*="height"] p {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  color: #00ff88 !important;
+}
+
+/* Progress Rings - 8bit Neon Style */
+body.retro-game svg circle {
+  stroke-width: 8px !important;
+  stroke-linecap: square !important;
+  filter: drop-shadow(0 0 3px currentColor);
+}
+
+body.retro-game svg circle[stroke-opacity] {
+  stroke: rgba(0, 255, 255, 0.2) !important;
+  stroke-opacity: 0.2 !important;
+}
+
+/* FocusCard - 8bit Game Mission Card */
+body.retro-game div[style*="linear-gradient"] {
+  background: #1a1a2e !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.6),
+    4px 4px 0px #000000 !important;
+  padding: 16px !important;
+  position: relative !important;
+}
+
+body.retro-game div[style*="linear-gradient"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #00ffff;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+  z-index: 1;
+}
+
+body.retro-game div[style*="linear-gradient"] h2 {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  color: #00ffff !important;
+  text-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.8),
+    0 0 20px rgba(0, 255, 255, 0.5) !important;
+  margin-bottom: 12px !important;
+}
+
+body.retro-game div[style*="linear-gradient"] div[style*="borderLeft"] {
+  border-left: 4px solid #00ffff !important;
+  background: #0a0a0f !important;
+  border-top: 2px solid #00ffff !important;
+  border-bottom: 2px solid #00ffff !important;
+  border-right: 2px solid #00ffff !important;
+  padding: 12px !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+}
+
+/* TScoreSummary - 8bit Game Score Display */
+body.retro-game section.card[style*="height"] header {
+  border-bottom: 2px solid #00ffff !important;
+  padding-bottom: 12px !important;
+  margin-bottom: 16px !important;
+}
+
+body.retro-game section.card[style*="height"] header h2 {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  color: #00ffff !important;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.8) !important;
+}
+
+body.retro-game section.card[style*="height"] span[style*="font-size: 48"] {
+  font-size: 36px !important;
+  font-weight: 700 !important;
+  color: #00ffff !important;
+  text-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.8),
+    0 0 30px rgba(0, 255, 255, 0.5) !important;
+}
+
+body.retro-game section.card[style*="height"] div[style*="background: #e0f2fe"] {
+  background: #1a1a2e !important;
+  color: #00ffff !important;
+  border: 2px solid #00ffff !important;
+  padding: 4px 8px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.5) !important;
+}
+
+/* KpiPanel - 8bit Game Info Window */
+body.retro-game section.card[style*="borderLeft"] {
+  border-left: 4px solid #00ffff !important;
+  border-top: 2px solid #00ffff !important;
+  border-bottom: 2px solid #00ffff !important;
+  border-right: 2px solid #00ffff !important;
+  background: #1a1a2e !important;
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.5),
+    4px 4px 0px #000000 !important;
+}
+
+body.retro-game section.card[style*="borderLeft"] h2 {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  color: #00ffff !important;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.8) !important;
+}
+
+body.retro-game section.card[style*="borderLeft"] div[style*="background: #f8fafc"] {
+  background: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  padding: 12px !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+}
+
+body.retro-game section.card[style*="borderLeft"] div[style*="background: #f8fafc"] div {
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  color: #00ff88 !important;
+}
+
+/* Dashboard - 8bit Section Title */
+body.retro-game .sectionTitle {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  color: #00ffff !important;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.8) !important;
+  border-bottom: 2px solid #00ffff !important;
+  padding-bottom: 8px !important;
+  margin-bottom: 16px !important;
+}
+
+/* MonthSelector - 8bit Navigation */
+body.retro-game .monthSelectorWrapper button {
+  border: 2px solid #00ffff !important;
+  background: #1a1a2e !important;
+  color: #00ffff !important;
+  box-shadow: 
+    0 0 8px rgba(0, 255, 255, 0.5),
+    2px 2px 0px #000000 !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+}
+
+body.retro-game .monthSelectorWrapper button:hover {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  box-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.8),
+    2px 2px 0px #000000 !important;
+  transform: translate(2px, 2px) !important;
+}
+
+/* Links - 8bit Style */
+body.retro-game a {
+  color: #00ffff !important;
+  text-decoration: underline !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.6) !important;
+}
+
+body.retro-game a:hover {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  text-decoration: none !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.8) !important;
+}
+
+/* グラデーション背景の8bit化 */
+body.retro-game div[style*="linear-gradient"] {
+  background: #1a1a2e !important;
+}
+
+/* 8bit Neon Shadows */
+body.retro-game .card,
+body.retro-game div[style*="boxShadow"] {
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.5),
+    4px 4px 0px #000000 !important;
+}
+
+/* アニメーション - 8bit Style (簡素化) */
+body.retro-game * {
+  transition: transform 0.1s steps(1, end) !important;
+}
+
+body.retro-game button:hover,
+body.retro-game .app-shell__link:hover {
+  transition: transform 0.1s steps(1, end) !important;
+}

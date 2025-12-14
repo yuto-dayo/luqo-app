@@ -1,0 +1,459 @@
+/* SalesInputModal.module.css */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(9, 9, 34, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 16px;
+  padding-top: calc(var(--header-height) + 16px);
+  overflow-y: auto;
+}
+
+.modal {
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  padding: 32px;
+  border-radius: 28px;
+  background: var(--color-surface);
+  box-shadow: 0 28px 80px -24px rgba(0, 0, 0, 0.35);
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.modal.dragging {
+  transform: scale(1.02);
+  border: 3px dashed var(--color-text-main);
+}
+
+.modal.success {
+  background: var(--color-q-surface, #f0fdf4);
+}
+
+.closeButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 50%;
+  color: var(--color-text-main, #0f172a);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.closeButton:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+}
+
+.backgroundEffect {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.4) 0%, transparent 35%);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.modeTabs {
+  display: flex;
+  background: rgba(241, 245, 249, 0.9);
+  padding: 4px;
+  border-radius: 99px;
+  gap: 6px;
+}
+
+.modeTab {
+  flex: 1;
+  padding: 12px;
+  border-radius: 99px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-sub, #64748b);
+  font-weight: 800;
+  box-shadow: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.modeTab.active {
+  background: var(--color-surface);
+  color: var(--color-text-main, #0f172a);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.modeTab.sales.active {
+  color: var(--color-text-main, #0f172a);
+}
+
+.modeTab.expenses.active {
+  color: var(--color-error, #b91c1c);
+}
+
+.amountInputWrapper {
+  position: relative;
+}
+
+.amountInputLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-main, #1e293b);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.currencySymbol {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 22px;
+  color: var(--color-text-muted, #94a3b8);
+  font-weight: 700;
+}
+
+.amountInput {
+  width: 100%;
+  font-size: 36px;
+  font-weight: 800;
+  padding: 14px 14px 14px 44px;
+  border-radius: 18px;
+  border: 2px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface-container-low, #f8fafc);
+  outline: none;
+  text-align: right;
+  letter-spacing: -1px;
+  color: var(--color-text-main, #0f172a);
+  transition: all 0.2s ease;
+}
+
+.amountInput:focus {
+  border-color: var(--color-seed, #0f172a);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+}
+
+.amountInput.expenses {
+  border-color: var(--color-error-light, #fecdd3);
+  background: var(--color-error-surface, #fff1f2);
+  color: var(--color-error, #b91c1c);
+}
+
+.formFields {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-main, #1e293b);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.labelOptional {
+  font-weight: 400;
+  color: var(--color-text-sub, #64748b);
+  margin-left: 4px;
+}
+
+.input,
+.select {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.input:focus,
+.select:focus {
+  border-color: var(--color-seed, #0f172a);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+}
+
+.dateInput {
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+}
+
+.dateInput:focus {
+  border-color: var(--color-seed, #0f172a);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+}
+
+.link {
+  text-align: right;
+  margin-top: 4px;
+}
+
+.linkAnchor {
+  font-size: 10px;
+  color: var(--color-primary, #2563eb);
+  text-decoration: none;
+}
+
+.linkAnchor:hover {
+  text-decoration: underline;
+}
+
+.submitArea {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.continuousModeLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.continuousModeCheckbox {
+  accent-color: var(--color-error, #b91c1c);
+  width: 16px;
+  height: 16px;
+}
+
+.continuousModeText {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-sub, #64748b);
+  transition: color 0.2s ease;
+}
+
+.continuousModeText.active {
+  color: var(--color-error, #b91c1c);
+}
+
+.submitButton {
+  width: 100%;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 800;
+  border-radius: 999px;
+  background: var(--color-text-main, #0f172a);
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 12px 20px -10px rgba(15, 23, 42, 0.35);
+  transition: transform 0.2s ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.submitButton:disabled {
+  background: var(--color-border, #cbd5e1);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.submitButton.expenses {
+  background: var(--color-error, #b91c1c);
+}
+
+.submitButton.expenses:hover:not(:disabled) {
+  box-shadow: 0 12px 20px -10px rgba(185, 28, 28, 0.35);
+}
+
+.successScreen {
+  text-align: center;
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+}
+
+.successIcon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  animation: bounce 1s infinite;
+}
+
+.successPoints {
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--color-q-base, #15803d);
+  margin: 0 0 8px;
+}
+
+.successBadge {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-q-base, #15803d);
+  background: var(--color-q-surface, #dcfce7);
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 99px;
+  margin-bottom: 40px;
+}
+
+.successMessage {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 24px;
+  border-radius: 24px;
+  margin-bottom: 32px;
+  box-shadow: 0 8px 16px -12px rgba(0, 0, 0, 0.15);
+}
+
+.successMessageText {
+  font-size: 16px;
+  color: var(--color-text-main, #0f172a);
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.successCloseButton {
+  background: var(--color-q-base, #15803d);
+  color: white;
+  border: none;
+  padding: 16px 48px;
+  border-radius: 100px;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 20px -12px rgba(21, 128, 61, 0.4);
+  width: 100%;
+  transition: transform 0.2s ease;
+}
+
+.successCloseButton:hover {
+  transform: translateY(-2px);
+}
+
+.burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, transparent 70%);
+  animation: ping 0.8s cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* スクロールバーを非表示（スクロール機能は維持） */
+.overlay::-webkit-scrollbar,
+.form::-webkit-scrollbar {
+  display: none;
+}
+
+.overlay,
+.form {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes ping {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Retro Game Mode */
+:global(.retro-game) .overlay {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+:global(.retro-game) .modal {
+  border: 3px solid var(--color-text-main, #2d2d2d);
+  box-shadow: 4px 4px 0px var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  background: var(--color-surface, #ffffff);
+}
+
+:global(.retro-game) .closeButton {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+}
+
+:global(.retro-game) .modeTabs {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  background: var(--color-surface-container-low, #f8fafc);
+}
+
+:global(.retro-game) .modeTab {
+  border-radius: 0;
+}
+
+:global(.retro-game) .modeTab.active {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+}
+
+:global(.retro-game) .amountInput,
+:global(.retro-game) .input,
+:global(.retro-game) .select,
+:global(.retro-game) .dateInput {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  box-shadow: 2px 2px 0px var(--color-text-main, #2d2d2d);
+}
+
+:global(.retro-game) .submitButton {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  box-shadow: 4px 4px 0px var(--color-text-main, #2d2d2d);
+}
+
+:global(.retro-game) .successCloseButton {
+  border: 2px solid var(--color-text-main, #2d2d2d);
+  border-radius: 0;
+  box-shadow: 4px 4px 0px var(--color-text-main, #2d2d2d);
+}

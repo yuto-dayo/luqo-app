@@ -1,0 +1,591 @@
+/* StarSettingsPage スタイル */
+
+/* ページヘッダー */
+.pageHeader {
+  padding: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  background: var(--color-surface);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.backButton {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  color: var(--color-text-main);
+  transition: color var(--motion-duration) var(--motion-easing);
+}
+
+.backButton:hover {
+  color: var(--color-seed);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+/* タブナビゲーション */
+.tabContainer {
+  display: flex;
+  padding: 0 var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.tabButton {
+  padding: var(--spacing-sm) 0;
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-sub);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--motion-duration) var(--motion-easing);
+  font-family: inherit;
+}
+
+.tabButtonActive {
+  border-bottom-color: var(--color-seed);
+  color: var(--color-seed);
+}
+
+/* コンテンツエリア */
+.content {
+  padding: var(--spacing-md);
+}
+
+/* カタログビュー */
+.catalogContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* カテゴリアコーディオン */
+.categoryAccordion {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.categoryHeader {
+  width: 100%;
+  padding: var(--spacing-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background var(--motion-duration) var(--motion-easing);
+}
+
+.categoryHeader:hover {
+  background: var(--color-surface-container-low);
+}
+
+.categoryTitle {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text-main);
+}
+
+.categoryIcon {
+  transform: rotate(0deg);
+  transition: transform var(--motion-duration) var(--motion-easing);
+}
+
+.categoryIconOpen {
+  transform: rotate(180deg);
+}
+
+.categoryContent {
+  padding: 0 var(--spacing-md) var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* アイテムカード */
+.itemCard {
+  padding: var(--spacing-sm);
+  background: var(--color-surface-container-low);
+  border-radius: var(--radius-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-sm);
+  border: 1px solid transparent;
+  transition: all var(--motion-duration) var(--motion-easing);
+}
+
+.itemCard:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.itemLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.itemId {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.itemActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.itemPoints {
+  font-weight: 700;
+  color: var(--color-seed);
+  font-size: 13px;
+}
+
+.deleteButton {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 4px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--motion-duration) var(--motion-easing);
+}
+
+.deleteButton:hover {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+/* 投票ビュー */
+.votingContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px;
+  color: var(--color-text-muted);
+}
+
+.proposalCard {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.proposalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.proposalHeaderLeft {
+  flex: 1;
+}
+
+.badgeGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: 4px;
+}
+
+.badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-sub);
+  background: var(--color-surface-container-low);
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+}
+
+.badgeStatus {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+}
+
+.proposalTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin-top: var(--spacing-sm);
+}
+
+.proposalSubtitle {
+  font-size: 12px;
+  color: var(--color-text-sub);
+  margin-top: 4px;
+}
+
+.proposalReasonBox {
+  padding: var(--spacing-sm);
+  background: var(--color-surface-container-low);
+  border-radius: var(--radius-sm);
+}
+
+.proposalReasonLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-sub);
+  margin-bottom: 4px;
+}
+
+.proposalReasonText {
+  font-size: 13px;
+  color: var(--color-text-main);
+  line-height: 1.6;
+}
+
+.aiCommentBox {
+  padding: var(--spacing-sm);
+  background: var(--color-o-bg);
+  border-radius: var(--radius-sm);
+}
+
+.aiCommentLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-o-base);
+  margin-bottom: 4px;
+}
+
+.aiCommentText {
+  font-size: 13px;
+  color: var(--color-o-base);
+  line-height: 1.6;
+}
+
+.aiCommentStatus {
+  font-size: 11px;
+  color: var(--color-o-base);
+  margin-top: 4px;
+}
+
+.voteInfo {
+  font-size: 12px;
+  color: var(--color-text-sub);
+}
+
+.voteButtons {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.voteButton {
+  flex: 1;
+  padding: 10px var(--spacing-md);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all var(--motion-duration) var(--motion-easing);
+  font-family: inherit;
+}
+
+.voteButtonApprove {
+  background: #10b981;
+  color: white;
+}
+
+.voteButtonApprove:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.voteButtonReject {
+  background: #ef4444;
+  color: white;
+}
+
+.voteButtonReject:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.voteButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* FAB */
+.fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--color-seed);
+  color: var(--color-on-seed);
+  border: none;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 9990;
+  transition: transform var(--motion-duration) var(--motion-easing);
+  touch-action: none;
+  user-select: none;
+}
+
+.fab:hover {
+  transform: scale(1.1);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+/* モバイル対応 */
+@media (max-width: 480px) {
+  .fab {
+    bottom: 24px;
+    right: 24px;
+  }
+}
+
+/* Retro Game Mode 対応 - 8bit Game Style */
+body.retro-game .pageHeader {
+  background: #0a0a0f !important;
+  border-bottom: 2px solid #00ffff !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3) !important;
+  backdrop-filter: none !important;
+}
+
+body.retro-game .backButton {
+  color: #00ffff !important;
+}
+
+body.retro-game .backButton:hover {
+  color: #00ff88 !important;
+  text-shadow: 0 0 5px rgba(0, 255, 136, 0.8) !important;
+}
+
+body.retro-game .pageTitle {
+  color: #00ffff !important;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.8) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+}
+
+body.retro-game .tabContainer {
+  background: #0a0a0f !important;
+  border-bottom: 2px solid #00ffff !important;
+}
+
+body.retro-game .tabButton {
+  color: #8888ff !important;
+  border-bottom-color: transparent !important;
+}
+
+body.retro-game .tabButtonActive {
+  background: #1a1a2e !important;
+  border-bottom-color: #00ffff !important;
+  color: #00ffff !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+}
+
+body.retro-game .categoryAccordion {
+  background: #1a1a2e !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 5px rgba(0, 255, 255, 0.3),
+    2px 2px 0px #000000 !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .categoryHeader:hover {
+  background: #0a0a0f !important;
+}
+
+body.retro-game .categoryTitle {
+  color: #00ff88 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+}
+
+body.retro-game .itemCard {
+  background: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 0 0 3px rgba(0, 255, 255, 0.2) !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .itemCard:hover {
+  background: #1a1a2e !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.4) !important;
+}
+
+body.retro-game .itemLabel {
+  color: #00ff88 !important;
+}
+
+body.retro-game .itemId {
+  color: #8888ff !important;
+}
+
+body.retro-game .itemPoints {
+  color: #00ffff !important;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.6) !important;
+}
+
+body.retro-game .deleteButton {
+  color: #8888ff !important;
+}
+
+body.retro-game .deleteButton:hover {
+  background: #1a0a0a !important;
+  border: 2px solid #ff0000 !important;
+  color: #ff0000 !important;
+  box-shadow: 0 0 5px rgba(255, 0, 0, 0.3) !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .proposalCard {
+  background: #1a1a2e !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 5px rgba(0, 255, 255, 0.3),
+    2px 2px 0px #000000 !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .badge {
+  background: #0a0a0f !important;
+  border: 1px solid #00ffff !important;
+  color: #00ffff !important;
+  box-shadow: 0 0 3px rgba(0, 255, 255, 0.3) !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .proposalTitle {
+  color: #00ffff !important;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.6) !important;
+}
+
+body.retro-game .proposalSubtitle {
+  color: #00ff88 !important;
+}
+
+body.retro-game .proposalReasonBox {
+  background: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 0 0 3px rgba(0, 255, 255, 0.2) !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .proposalReasonText {
+  color: #00ff88 !important;
+}
+
+body.retro-game .aiCommentBox {
+  background: #1a0a1a !important;
+  border: 2px solid #ff00ff !important;
+  box-shadow: 0 0 3px rgba(255, 0, 255, 0.3) !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .aiCommentLabel,
+body.retro-game .aiCommentText,
+body.retro-game .aiCommentStatus {
+  color: #ff00ff !important;
+}
+
+body.retro-game .voteButtonApprove {
+  background: #00ff00 !important;
+  color: #0a0a0f !important;
+  border: 2px solid #00ff00 !important;
+  box-shadow: 
+    0 0 8px rgba(0, 255, 0, 0.5),
+    2px 2px 0px #000000 !important;
+  border-radius: 0 !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+body.retro-game .voteButtonApprove:hover:not(:disabled) {
+  box-shadow: 
+    0 0 12px rgba(0, 255, 0, 0.8),
+    2px 2px 0px #000000 !important;
+  transform: translate(2px, 2px) !important;
+}
+
+body.retro-game .voteButtonReject {
+  background: #ff0000 !important;
+  color: #0a0a0f !important;
+  border: 2px solid #ff0000 !important;
+  box-shadow: 
+    0 0 8px rgba(255, 0, 0, 0.5),
+    2px 2px 0px #000000 !important;
+  border-radius: 0 !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+body.retro-game .voteButtonReject:hover:not(:disabled) {
+  box-shadow: 
+    0 0 12px rgba(255, 0, 0, 0.8),
+    2px 2px 0px #000000 !important;
+  transform: translate(2px, 2px) !important;
+}
+
+body.retro-game .fab {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.8),
+    4px 4px 0px #000000 !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .fab:hover {
+  box-shadow: 
+    0 0 20px rgba(0, 255, 255, 1),
+    4px 4px 0px #000000 !important;
+  transform: translate(2px, 2px) !important;
+}
+
+
+

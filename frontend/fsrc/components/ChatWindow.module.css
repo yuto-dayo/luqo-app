@@ -1,0 +1,94 @@
+.container {
+  position: fixed;
+  z-index: 9999;
+  background: var(--color-surface, white);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-xl, 0 8px 30px rgba(0, 0, 0, 0.15));
+}
+
+.desktopWindow {
+  width: 360px;
+  height: 520px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border, #e5e7eb);
+}
+
+.tabletWindow {
+  width: 340px;
+  height: 480px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border, #e5e7eb);
+}
+
+.mobileWindow {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 85vh;
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  animation: slideUp 0.3s cubic-bezier(0.2, 0, 0, 1);
+  /* キーボード表示時のスムーズなトランジション */
+  transition: bottom 0.25s cubic-bezier(0.2, 0, 0, 1), height 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.messagesContainer {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--color-surface-container-lowest, white);
+}
+
+@media (max-width: 640px) {
+  .messagesContainer {
+    padding: 12px;
+    gap: 12px;
+  }
+}
+
+/* Retro Game Mode Styles */
+body.retro-game .container {
+  background: #1a1a2e !important;
+  border: 2px solid #00ffff !important;
+  box-shadow:
+    0 0 15px rgba(0, 255, 255, 0.6),
+    4px 4px 0px #000000 !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .desktopWindow,
+body.retro-game .tabletWindow {
+  border-radius: 0 !important;
+  border: 2px solid #00ffff !important;
+}
+
+body.retro-game .mobileWindow {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+  border: 2px solid #00ffff !important;
+  border-bottom: none !important;
+}
+
+body.retro-game .messagesContainer {
+  background: #0a0a0f !important;
+  border-top: 2px solid #00ffff !important;
+  border-bottom: 2px solid #00ffff !important;
+}
+

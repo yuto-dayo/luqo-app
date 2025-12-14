@@ -1,0 +1,474 @@
+/* 取引先マスタページのスタイル */
+
+.container {
+  padding-bottom: 80px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* ページヘッダー */
+.pageHeader {
+  padding: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  background: var(--color-surface);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.backButton {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  color: var(--color-text-main);
+  transition: color var(--motion-duration) var(--motion-easing);
+}
+
+.backButton:hover {
+  color: var(--color-seed);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+/* コンテンツエリア */
+.content {
+  padding: var(--spacing-md);
+}
+
+/* ローディング・空状態 */
+.loadingState,
+.emptyState {
+  text-align: center;
+  padding: 40px;
+  color: var(--color-text-muted);
+}
+
+.emptyStateIcon {
+  margin-bottom: var(--spacing-md);
+}
+
+.emptyStateText {
+  margin-top: var(--spacing-md);
+}
+
+.emptyStateSubtext {
+  font-size: 14px;
+  margin-top: var(--spacing-sm);
+}
+
+/* クライアントリスト */
+.clientList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* クライアントアイテム */
+.clientItem {
+  padding: var(--spacing-md) var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all var(--motion-duration) var(--motion-easing);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-dynamic);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.clientItem:hover {
+  background: var(--color-surface-container-low);
+  border-color: var(--color-seed);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.clientItemContent {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex: 1;
+}
+
+.clientAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--color-lu-surface);
+  color: var(--color-lu-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.clientInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.clientName {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.clientHint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.deleteButton {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--motion-duration) var(--motion-easing);
+}
+
+.deleteButton:hover {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+/* FAB (Floating Action Button) */
+.fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--color-seed);
+  color: var(--color-on-seed);
+  border: none;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 9990;
+  transition: transform var(--motion-duration) var(--motion-easing);
+  touch-action: none;
+  user-select: none;
+}
+
+.fab:hover {
+  transform: scale(1.1);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+/* モーダル */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--spacing-md);
+  padding-top: 20vh;
+  overflow-y: auto;
+  backdrop-filter: blur(4px);
+}
+
+.modalContent {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow-xl);
+}
+
+.modalTitle {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.modalForm {
+  margin-bottom: var(--spacing-lg);
+}
+
+.modalLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-seed);
+  margin-bottom: var(--spacing-sm);
+}
+
+.modalInput {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  outline: none;
+  transition: border-color var(--motion-duration) var(--motion-easing);
+  background: var(--color-surface);
+  color: var(--color-text-main);
+}
+
+.modalInput:focus {
+  border-color: var(--color-seed);
+  box-shadow: 0 0 0 3px rgba(0, 99, 155, 0.1);
+}
+
+.modalButtonGroup {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+}
+
+.modalButtonBase {
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--motion-duration) var(--motion-easing);
+  font-family: inherit;
+}
+
+.modalButtonCancel {
+  composes: modalButtonBase;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-sub);
+}
+
+.modalButtonCancel:hover:not(:disabled) {
+  background: var(--color-surface-container-low);
+  border-color: var(--color-border-hover);
+}
+
+.modalButtonSave {
+  composes: modalButtonBase;
+  border: none;
+  background: var(--color-seed);
+  color: var(--color-on-seed);
+  font-weight: 700;
+}
+
+.modalButtonSave:hover:not(:disabled) {
+  background: #0271a8;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.modalButtonSave:disabled {
+  background: var(--color-surface-container-high);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+/* モバイル対応 */
+@media (max-width: 480px) {
+  .fab {
+    bottom: 24px;
+    right: 24px;
+  }
+}
+
+/* Retro Game Mode 対応 - 8bit Game Style */
+body.retro-game .pageHeader {
+  background: #0a0a0f !important;
+  border-bottom: 2px solid #00ffff !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3) !important;
+  backdrop-filter: none !important;
+}
+
+body.retro-game .backButton {
+  color: #00ffff !important;
+}
+
+body.retro-game .backButton:hover {
+  color: #00ff88 !important;
+  text-shadow: 0 0 5px rgba(0, 255, 136, 0.8) !important;
+}
+
+body.retro-game .pageTitle {
+  color: #00ffff !important;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.8) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+}
+
+body.retro-game .clientItem {
+  background: #1a1a2e !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 5px rgba(0, 255, 255, 0.3),
+    2px 2px 0px #000000 !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .clientItem:hover {
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.6),
+    2px 2px 0px #000000 !important;
+  transform: translate(2px, 2px) !important;
+  background: #0a0a0f !important;
+}
+
+body.retro-game .clientAvatar {
+  background: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  color: #00ffff !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .clientName {
+  color: #00ff88 !important;
+}
+
+body.retro-game .clientHint {
+  color: #8888ff !important;
+}
+
+body.retro-game .deleteButton {
+  color: #8888ff !important;
+}
+
+body.retro-game .deleteButton:hover {
+  background: #1a0a0a !important;
+  border: 2px solid #ff0000 !important;
+  color: #ff0000 !important;
+  box-shadow: 0 0 5px rgba(255, 0, 0, 0.3) !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .fab {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.8),
+    4px 4px 0px #000000 !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .fab:hover {
+  box-shadow: 
+    0 0 20px rgba(0, 255, 255, 1),
+    4px 4px 0px #000000 !important;
+  transform: translate(2px, 2px) !important;
+}
+
+body.retro-game .modalOverlay {
+  background: rgba(10, 10, 15, 0.95) !important;
+}
+
+body.retro-game .modalContent {
+  background: #1a1a2e !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 20px rgba(0, 255, 255, 0.6),
+    4px 4px 0px #000000 !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .modalTitle {
+  color: #00ffff !important;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.8) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+}
+
+body.retro-game .modalLabel {
+  color: #00ff00 !important;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.6) !important;
+}
+
+body.retro-game .modalInput {
+  background: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  color: #00ffff !important;
+  border-radius: 0 !important;
+  font-family: 'DotGothic16', 'Press Start 2P', monospace !important;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
+}
+
+body.retro-game .modalInput:focus {
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.6),
+    0 0 20px rgba(0, 255, 255, 0.3) !important;
+  outline: 2px solid #00ffff !important;
+}
+
+body.retro-game .modalButtonCancel {
+  background: #1a1a2e !important;
+  border: 2px solid #00ffff !important;
+  color: #00ffff !important;
+  box-shadow: 
+    0 0 8px rgba(0, 255, 255, 0.5),
+    2px 2px 0px #000000 !important;
+  border-radius: 0 !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+body.retro-game .modalButtonCancel:hover {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  box-shadow: 
+    0 0 15px rgba(0, 255, 255, 0.8),
+    2px 2px 0px #000000 !important;
+  transform: translate(2px, 2px) !important;
+}
+
+body.retro-game .modalButtonSave {
+  background: #00ffff !important;
+  color: #0a0a0f !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.8),
+    2px 2px 0px #000000 !important;
+  border-radius: 0 !important;
+}
+
+body.retro-game .modalButtonSave:hover:not(:disabled) {
+  box-shadow: 
+    0 0 20px rgba(0, 255, 255, 1),
+    2px 2px 0px #000000 !important;
+  transform: translate(2px, 2px) !important;
+}
+
+body.retro-game .modalButtonSave:disabled {
+  background: #0a0a0f !important;
+  border-color: #8888ff !important;
+  color: #8888ff !important;
+  box-shadow: none !important;
+}

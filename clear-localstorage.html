@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalStorage クリア</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>LocalStorage クリアツール</h1>
+    <div class="info">
+        <p>以下のキーを削除します：</p>
+        <ul>
+            <li><code>luqo.banditMission.v1</code></li>
+            <li><code>luqo.score.v1.2025-12</code></li>
+        </ul>
+    </div>
+    <button onclick="clearAndReload()">クリアしてリロード</button>
+    <button onclick="clearOnly()">クリアのみ（リロードなし）</button>
+    
+    <script>
+        function clearAndReload() {
+            localStorage.removeItem("luqo.banditMission.v1");
+            localStorage.removeItem("luqo.score.v1.2025-12");
+            alert("LocalStorageをクリアしました。ページをリロードします。");
+            location.reload();
+        }
+        
+        function clearOnly() {
+            localStorage.removeItem("luqo.banditMission.v1");
+            localStorage.removeItem("luqo.score.v1.2025-12");
+            alert("LocalStorageをクリアしました。");
+        }
+    </script>
+</body>
+</html>
+
+
+
+

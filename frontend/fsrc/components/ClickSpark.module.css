@@ -1,0 +1,66 @@
+.sparkContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 99999;
+  overflow: hidden;
+}
+
+.spark {
+  position: absolute;
+  font-family: 'Press Start 2P', monospace;
+  color: #ffcc00;
+  font-size: 12px;
+  user-select: none;
+  animation: sparkPop 0.5s ease-out forwards;
+  text-shadow: 2px 2px 0px #000;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background-color: #fff;
+  box-shadow: 2px 2px 0px #000;
+  animation: particleFly 0.6s ease-out forwards;
+}
+
+@keyframes sparkPop {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -80%) scale(1.2);
+  }
+  100% {
+    transform: translate(-50%, -120%) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes particleFly {
+  0% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty));
+    opacity: 0;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+

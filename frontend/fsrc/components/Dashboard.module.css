@@ -1,0 +1,214 @@
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding-top: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+    padding-left: var(--spacing-md);
+    padding-right: var(--spacing-md);
+    font-family: "Google Sans", Roboto, Arial, sans-serif;
+    background-color: var(--color-surface-container-low, #f8fafc);
+    min-height: 100vh;
+    /* 左右のパディングを明示的に統一 */
+    box-sizing: border-box;
+}
+
+/* モバイル対応: コンテナのパディングを調整 */
+@media (max-width: 600px) {
+    .container {
+        padding-top: var(--spacing-sm);
+        padding-bottom: var(--spacing-sm);
+        padding-left: var(--spacing-sm);
+        padding-right: var(--spacing-sm);
+    }
+}
+
+.compactHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-sm);
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+/* モバイル対応: ヘッダーを縦並びに */
+@media (max-width: 600px) {
+    .compactHeader {
+        flex-direction: column;
+        align-items: center;
+        gap: var(--spacing-xs);
+    }
+    
+    .monthSelectorWrapper {
+        width: 100%;
+    }
+}
+
+.greetingBox {
+    flex: 1;
+    min-width: 0;
+}
+
+.greetingText {
+    font-size: clamp(1.125rem, 4vw, 1.375rem); /* 22px → レスポンシブ */
+    font-weight: 500;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    /* color is set dynamically via inline style */
+}
+
+/* モバイル対応: 長いテキストの折り返しを許可 */
+@media (max-width: 600px) {
+    .greetingText {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+}
+
+.sectionTitle {
+    font-size: clamp(0.8125rem, 2vw, 0.875rem); /* 14px → レスポンシブ */
+    font-weight: 500;
+    color: #444746;
+    margin: clamp(1rem, 3vw, 1.5rem) 0 var(--spacing-sm);
+    letter-spacing: 0.5px;
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+}
+
+/* モバイル対応: グリッドを1列に */
+@media (max-width: 600px) {
+    .statsGrid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+    }
+}
+
+/* タブレット対応: 2列レイアウト */
+@media (min-width: 600px) and (max-width: 840px) {
+    .statsGrid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+}
+
+.cardWrapper {
+    height: 100%;
+}
+
+.toolToggle {
+    background: transparent;
+    border: none;
+    color: #00639b;
+    /* Primary */
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toolsContainer {
+    margin-top: 32px;
+    border-top: 1px solid #eff1f4;
+}
+
+.fadeIn {
+    animation: fadeIn 0.3s ease;
+}
+
+.monthSelectorWrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.heroSection {
+    margin-bottom: clamp(1.5rem, 4vw, 2rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+/* LUQOスコア専用セクション */
+.luqoScoreSection {
+    margin-bottom: clamp(1.5rem, 4vw, 2rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+/* モバイル対応: LUQOスコアセクションの調整 */
+@media (max-width: 600px) {
+    .luqoScoreSection {
+        margin-bottom: var(--spacing-md);
+    }
+}
+
+.guardianBadgeWrapper {
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Retro Game Mode対応 - 8bit Game Style */
+body.retro-game .container {
+    background-color: #0a0a0f !important;
+}
+
+body.retro-game .sectionTitle {
+    font-family: 'DotGothic16', 'Press Start 2P', monospace !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 2px !important;
+    color: #00ffff !important;
+    text-shadow: 0 0 8px rgba(0, 255, 255, 0.8) !important;
+    border-bottom: 2px solid #00ffff !important;
+    padding-bottom: 8px !important;
+}
+
+body.retro-game .toolToggle {
+    border: 2px solid #00ffff !important;
+    background: #1a1a2e !important;
+    color: #00ffff !important;
+    box-shadow: 
+        0 0 8px rgba(0, 255, 255, 0.5),
+        2px 2px 0px #000000 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    border-radius: 0 !important;
+}
+
+body.retro-game .toolToggle:hover {
+    background: #00ffff !important;
+    color: #0a0a0f !important;
+    box-shadow: 
+        0 0 15px rgba(0, 255, 255, 0.8),
+        2px 2px 0px #000000 !important;
+    transform: translate(2px, 2px) !important;
+}
+
+body.retro-game .toolsContainer {
+    border-top: 2px solid #00ffff !important;
+    box-shadow: 0 -2px 0 rgba(0, 255, 255, 0.3) !important;
+}

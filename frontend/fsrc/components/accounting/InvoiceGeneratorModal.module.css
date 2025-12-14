@@ -1,0 +1,535 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal {
+  background: var(--color-surface, #ffffff);
+  border-radius: var(--radius-xl, 24px);
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-main, #111827);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.closeButton,
+.backButton,
+.actionButton {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-sub, #6b7280);
+  font-size: 14px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.closeButton:hover,
+.backButton:hover,
+.actionButton:hover {
+  background: var(--color-surface-container-low, #f9fafb);
+  color: var(--color-text-main, #111827);
+}
+
+.selectStep {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.form {
+  padding: 24px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-sub, #6b7280);
+}
+
+.select {
+  padding: 12px 16px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 12px;
+  font-size: 14px;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text-main, #111827);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.select:focus {
+  border-color: var(--color-primary, #2563eb);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.cancelButton,
+.generateButton {
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.cancelButton {
+  background: var(--color-surface-container-low, #f9fafb);
+  color: var(--color-text-sub, #6b7280);
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: var(--color-surface-container, #f1f5f9);
+}
+
+.generateButton {
+  background: var(--color-primary, #2563eb);
+  color: white;
+}
+
+.generateButton:hover:not(:disabled) {
+  background: var(--color-primary-dark, #1d4ed8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.generateButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.previewStep {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.invoice {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 30px;
+  background: white;
+  min-height: 0;
+}
+
+.invoiceHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--color-border, #e5e7eb);
+}
+
+.invoiceNumber {
+  text-align: right;
+  font-size: 12px;
+  color: var(--color-text-sub, #6b7280);
+  line-height: 1.6;
+}
+
+.date {
+  margin-bottom: 4px;
+}
+
+.number {
+  font-weight: 600;
+}
+
+.title {
+  font-size: 36px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-text-main, #111827);
+  letter-spacing: 0.5px;
+}
+
+.invoiceBody {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid var(--color-border, #e5e7eb);
+}
+
+.recipientSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recipientName {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-main, #111827);
+  margin-bottom: 4px;
+}
+
+.recipientText {
+  font-size: 14px;
+  color: var(--color-text-sub, #6b7280);
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.periodText {
+  font-size: 13px;
+  color: var(--color-text-sub, #6b7280);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+  font-weight: 600;
+}
+
+.issuerSection {
+  text-align: right;
+  font-size: 12px;
+  color: var(--color-text-sub, #6b7280);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.issuerName {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-main, #111827);
+  margin-bottom: 4px;
+}
+
+.issuerAddress {
+  line-height: 1.6;
+}
+
+.issuerReg {
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.itemsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+}
+
+.itemsTable thead {
+  background: var(--color-surface-container-low, #f9fafb);
+}
+
+.itemsTable th {
+  padding: 12px 8px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-main, #111827);
+  border-bottom: 2px solid var(--color-border, #e5e7eb);
+  background: var(--color-surface-container-low, #f9fafb);
+}
+
+.itemsTable th:first-child {
+  padding-left: 12px;
+  width: 80px; /* 日付列の幅 */
+}
+
+.itemsTable th:nth-child(2) {
+  width: 120px; /* 現場名列の幅 */
+}
+
+.itemsTable th:nth-child(3) {
+  min-width: 150px; /* 品番・品名列の最小幅 */
+}
+
+.itemsTable th:nth-child(4) {
+  width: 60px; /* 数量列の幅 */
+  text-align: center;
+}
+
+.itemsTable th:nth-child(5) {
+  width: 100px; /* 単価列の幅 */
+  text-align: right;
+}
+
+.itemsTable th:last-child {
+  text-align: right;
+  padding-right: 12px;
+  width: 120px; /* 金額列の幅 */
+}
+
+.itemsTable td {
+  padding: 10px 8px;
+  font-size: 14px;
+  color: var(--color-text-main, #111827);
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.itemsTable td:first-child {
+  padding-left: 12px;
+  font-size: 13px;
+  color: var(--color-text-sub, #6b7280);
+}
+
+.itemsTable td:nth-child(2) {
+  font-weight: 600;
+  color: var(--color-text-main, #111827);
+}
+
+.itemsTable td:nth-child(4) {
+  text-align: center;
+}
+
+.itemsTable td:nth-child(5) {
+  text-align: right;
+}
+
+.itemsTable td:last-child {
+  text-align: right;
+  padding-right: 12px;
+  font-weight: 600;
+}
+
+.itemsTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.emptyRow td {
+  height: 24px;
+}
+
+.summary {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 16px;
+}
+
+.summaryRight {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 240px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--color-text-main, #111827);
+  padding: 6px 0;
+  align-items: center;
+}
+
+.summaryRowTotal {
+  display: flex;
+  justify-content: space-between;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-main, #111827);
+  padding: 16px 0;
+  border-top: 2px solid var(--color-border, #e5e7eb);
+  margin-top: 8px;
+  align-items: center;
+}
+
+/* 印刷用スタイル */
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  /* ページ全体をリセット */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ページ全体の他の要素を非表示（より確実な方法） */
+  body * {
+    visibility: hidden;
+  }
+
+  /* 請求書モーダルとその子要素のみ表示 */
+  .overlay,
+  .overlay *,
+  .overlay *::before,
+  .overlay *::after {
+    visibility: visible !important;
+  }
+
+  .overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    z-index: 999999 !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    overflow: visible !important;
+  }
+
+  .modal {
+    position: relative !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    overflow: visible !important;
+  }
+
+  .header,
+  .headerActions,
+  .backButton,
+  .selectStep {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  .previewStep {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    visibility: visible !important;
+  }
+
+  .invoice {
+    padding: 20px !important;
+    background: white !important;
+    page-break-after: auto;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #000 !important;
+  }
+
+  .invoice * {
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: inherit !important;
+  }
+
+  .invoiceHeader {
+    page-break-inside: avoid;
+    page-break-after: avoid;
+    margin-bottom: 20px;
+  }
+
+  .invoiceBody {
+    page-break-inside: avoid;
+    margin-bottom: 20px;
+  }
+
+  .itemsTable {
+    page-break-inside: auto;
+    border-collapse: collapse;
+  }
+
+  /* テーブルヘッダーを各ページに繰り返し表示 */
+  .itemsTable thead {
+    display: table-header-group;
+  }
+
+  .itemsTable thead tr {
+    page-break-inside: avoid;
+    page-break-after: avoid;
+  }
+
+  /* 明細行の改ページ設定 */
+  .itemsTable tbody tr {
+    page-break-inside: avoid;
+  }
+
+  /* テーブルが長い場合でも適切に改ページ */
+  .itemsTable tbody {
+    display: table-row-group;
+  }
+
+  .summary {
+    page-break-inside: avoid;
+    page-break-before: avoid;
+    margin-top: 20px;
+  }
+
+  /* 空白行は印刷時に非表示または最小限に */
+  .emptyRow {
+    height: 12px !important;
+  }
+
+  .emptyRow td {
+    height: 12px !important;
+    padding: 2px !important;
+  }
+}

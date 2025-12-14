@@ -1,0 +1,101 @@
+import { useState } from "react";
+import { supabase } from "../services/supabase";
+import { useNavigate } from "react-router-dom";
+import { useSetUserId } from "../hooks/useLuqoStore";
+
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [loading, setLoading] = useState(false);
+  const setUserId = useSetUserId();
+  const navigate = useNavigate();
+
+  async function handleLogin() {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: pw,
+      });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      const token = data.session?.access_token;
+      if (!token) {
+        alert("セッションが取得できませんでした");
+        return;
+      }
+
+      const user = data.user;
+      if (user?.id) {
+        setUserId(user.id);
+        localStorage.setItem("luqo_user_id", user.id);
+      }
+
+      // アクセストークンを保存
+      localStorage.setItem("session_token", token);
+      
+      // Supabaseクライアントにセッションを設定（Realtime接続に必要）
+      if (data.session) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+      }
+      
+      // 認証状態の変更を通知（useAuthフックが検知できるように）
+      window.dispatchEvent(new Event("auth-changed"));
+      
+      // React Routerでリダイレクト（ページリロードなし）
+      navigate("/", { replace: true });
+    } catch (err: any) {
+      console.error("Login error:", err);
+      alert("ログインに失敗しました: " + (err.message || "不明なエラー"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="login-page">
+      <div className="login-card">
+        <h2 className="login-title">LUQO Core</h2>
+        <p className="text-muted" style={{ textAlign: "center", marginTop: "-1rem", marginBottom: "1rem" }}>
+          Sign in to your account
+        </p>
+
+        <div className="field">
+          <input
+            type="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+          />
+        </div>
+
+        <div className="field">
+          <input
+            type="password"
+            placeholder="Password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            autoComplete="current-password"
+          />
+        </div>
+
+        <button
+          className="btn btn--primary"
+          style={{ marginTop: "0.5rem" }}
+          onClick={handleLogin}
+          disabled={loading}
+        >
+          {loading ? "Signing in..." : "Sign In"}
+        </button>
+      </div>
+    </div>
+  );
+}
